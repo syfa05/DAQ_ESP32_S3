@@ -48,3 +48,7 @@ class InvalidTransition(Conflict):
 
 class ValidationFailed(DomainError):
     code = "donnees_invalides"
+
+
+class PayloadTooLarge(DomainError):
+    code = "fichier_trop_volumineux"

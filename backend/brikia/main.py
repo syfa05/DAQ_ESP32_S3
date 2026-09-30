@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .api import auth as auth_api
+from .api import projects as projects_api
 from .api.errors import install_error_handlers
 from .config import Settings, get_settings
 from .db import init_db
@@ -48,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(auth_api.router)
+    app.include_router(projects_api.router)
 
     @app.get("/api/health", tags=["système"])
     def health() -> dict[str, str]:
