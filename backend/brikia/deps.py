@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from .adapters.analyzers.base import PlanAnalyzer
+from .adapters.layout.base import LayoutEngine
 from .config import Settings
 from .db import get_session_factory
 from .domain.enums import Role
@@ -26,6 +27,10 @@ def get_settings_dep(request: Request) -> Settings:
 
 def get_plan_analyzer(request: Request) -> PlanAnalyzer:
     return request.app.state.plan_analyzer
+
+
+def get_layout_engine(request: Request) -> LayoutEngine:
+    return request.app.state.layout_engine
 
 
 def get_db() -> Iterator[Session]:

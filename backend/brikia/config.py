@@ -55,6 +55,9 @@ class Settings(BaseSettings):
         default_factory=lambda: [".step", ".stp", ".ifc", ".pdf"]
     )
 
+    # Règles de calepinage temporaires : fichier JSON de surcharges (optionnel).
+    layout_rules_file: Path | None = None
+
     # --- Logs ---------------------------------------------------------
     log_level: str = "INFO"
 
