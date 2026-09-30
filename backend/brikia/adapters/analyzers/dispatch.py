@@ -92,8 +92,8 @@ def build_plan_analyzer(settings) -> ExtensionPlanAnalyzer:  # noqa: ANN001
         return IfcPlanAnalyzer()
 
     def step() -> PlanAnalyzer:
-        from .step import StepPlanAnalyzer
-        return StepPlanAnalyzer()
+        from .step import StepOptions, StepPlanAnalyzer
+        return StepPlanAnalyzer(StepOptions.from_settings(settings))
 
     def dxf() -> PlanAnalyzer:
         from .dxf import DxfOptions, DxfPlanAnalyzer

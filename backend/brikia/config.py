@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     dxf_door_layers: str = r"door|porte|puerta"
     dxf_window_layers: str = r"window|fen[eê]tre|vitr|ventana"
 
+    # STEP : axe vertical du modèle. « auto » = Z, sauf évidence forte d'un modèle en Y vertical.
+    step_up_axis: Literal["auto", "z", "y"] = "auto"
+
     # --- Logs ---------------------------------------------------------
     log_level: str = "INFO"
 
