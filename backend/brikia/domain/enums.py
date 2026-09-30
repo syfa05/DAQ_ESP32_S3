@@ -25,5 +25,15 @@ class OrderStatus(StrEnum):
     ERREUR = "erreur"
 
 
+class ShapeCategory(StrEnum):
+    """Fonction d'une forme dans un mur ; le moteur de calepinage raisonne
+    par catégorie (jamais par code), donc les codes restent libres."""
+
+    STANDARD = "standard"
+    ANGLE = "angle"
+    CHAINAGE = "chainage"
+    LINTEAU = "linteau"
+
+
 def values(enum_cls: type[StrEnum]) -> list[str]:
     return [e.value for e in enum_cls]

@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..domain.enums import OrderStatus, ProjectStatus, Role, values
+from ..domain.enums import OrderStatus, ProjectStatus, Role, ShapeCategory, values
 from .base import Base, UTCDateTime, utcnow
 
 
@@ -141,9 +141,14 @@ class BrickShape(Base):
     """Bibliothèque de moules."""
 
     __tablename__ = "brick_shapes"
+    __table_args__ = (CheckConstraint(_in("categorie", ShapeCategory), name="categorie"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(40), unique=True)
+    categorie: Mapped[str] = mapped_column(
+        String(20), default=ShapeCategory.STANDARD.value,
+        server_default=ShapeCategory.STANDARD.value,
+    )
     nom: Mapped[str] = mapped_column(String(120))
     produit: Mapped[str] = mapped_column(String(120))
     role: Mapped[str] = mapped_column(String(255), default="")
