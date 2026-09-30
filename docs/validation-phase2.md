@@ -56,9 +56,9 @@ dalles ignorés, volumes massifs, fichiers corrompus. Performance : 1 500 solide
 
 ## Anomalies trouvées et corrigées pendant la validation
 
-1. **Murs à axe polygonal** (IFC) : une boîte englobante donnait des longueurs fausses (jusqu'à −60 % de surface) ;
+1. **Murs à axe polygonal** (IFC) : une boîte englobante donnait des longueurs fausses (jusqu'à −66 % de surface sur certains murs) ;
    remplacé par les segments de l'axe.
-2. **Hauteur des murs recoupés par un toit** : la hauteur de la géométrie surestimait jusqu'à 50 % ; remplacée par la
+2. **Hauteur des murs recoupés par un toit** : la hauteur de la géométrie surestimait jusqu'à +53 % la surface de certains murs ; remplacée par la
    surface brute du fichier ÷ longueur (écart final < 0,1 %).
 3. **Trémies de dalles** comptées comme ouvertures de murs : exclues.
 4. **En-tête DXF faux** (`$INSUNITS`) : unité validée par la plausibilité de l'emprise.
