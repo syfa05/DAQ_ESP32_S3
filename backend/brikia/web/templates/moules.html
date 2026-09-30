@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Bibliothèque de moules{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Bibliothèque de moules</h1>
+    <p class="muted">Formes disponibles pour le calepinage. Un moule désactivé n'est plus utilisé pour les nouveaux calculs.</p></div>
+  {% if is_chef %}<button class="btn btn-primary" id="new-mold" type="button">Nouveau moule</button>{% endif %}
+</div>
+<div id="molds" class="card table-card"><p class="muted pad">Chargement…</p></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/moules.js"></script>{% endblock %}

@@ -51,5 +51,26 @@ Rôles : `chef_projet`, `operateur`. Authentification par session serveur (cooki
 requête modifiante. Les permissions sont contrôlées côté backend par `require_role(...)`.
 Limitation des essais de connexion : 5 échecs / 60 s par identifiant.
 
+## Interface
+
+Pages Jinja2 (coquilles) + JavaScript léger en modules ES, sans build ni framework. Toutes les
+données passent par l'API JSON ; le JS ne porte aucune règle métier (les transitions et
+permissions sont validées côté backend). Tout est servi localement : CSS, JS et polices
+(Oswald, IBM Plex Mono, Inter — licence SIL OFL, voir `static/fonts/LICENSE-*.txt`).
+La CSP interdit scripts et styles inline : les valeurs dynamiques (barres de progression, mise
+à l'échelle des schémas) sont posées via le CSSOM.
+
+| Page | Rôle | Contenu |
+|---|---|---|
+| `/connexion` | tous | Authentification |
+| `/` | tous | Pipeline (chef : 6 colonnes ; opérateur : validés / en production / terminés) |
+| `/projets/nouveau` | chef | Import d'un plan |
+| `/projets/{id}` | tous (filtré) | Étapes, murs, calepinage IA, BOM, schéma des murs, validation / lancement |
+| `/moules` | tous ; CRUD chef | Bibliothèque de moules |
+| `/production` | tous | Suivi en direct des ordres |
+| `/journal` | chef | Journal d'audit (ActionLog) |
+
+Les pages masquent les actions interdites par confort ; la protection réelle est celle de l'API.
+
 Les sections utilisation, architecture, éléments simulés, phases futures et
 déploiement/pare-feu seront complétées au fil des incréments.

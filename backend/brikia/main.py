@@ -23,6 +23,7 @@ from .config import Settings, get_settings
 from .db import init_db
 from .logging_setup import setup_logging
 from .services.auth import LoginThrottle
+from .web import routes as web_routes
 
 _STATIC = Path(__file__).parent / "static"
 
@@ -70,6 +71,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(layout_api.router)
     app.include_router(production_api.router)
     app.include_router(audit_api.router)
+
+    app.include_router(web_routes.router)
 
     @app.get("/api/health", tags=["système"])
     def health() -> dict[str, str]:

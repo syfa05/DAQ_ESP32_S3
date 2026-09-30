@@ -28,6 +28,11 @@ _STATUS: list[tuple[type[e.DomainError], int]] = [
 ]
 
 
+def _wants_html(request: Request) -> bool:
+    return not request.url.path.startswith("/api/") and "text/html" in request.headers.get(
+        "accept", "")
+
+
 def _status_for(exc: e.DomainError) -> int:
     for cls, status in _STATUS:
         if isinstance(exc, cls):
@@ -49,9 +54,15 @@ def install_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(StarletteHTTPException)
-    async def http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+    async def http_error(request: Request, exc: StarletteHTTPException):
         detail = {404: "Ressource introuvable.", 405: "Méthode non autorisée."}.get(
             exc.status_code, "Requête refusée.")
+        if _wants_html(request):
+            from ..web.routes import error_page
+
+            title = "Page introuvable" if exc.status_code == 404 else "Requête refusée"
+            return error_page(request, exc.status_code, title,
+                              "La page demandée n'existe pas." if exc.status_code == 404 else detail)
         return JSONResponse({"code": "erreur_http", "detail": detail}, exc.status_code)
 
     @app.exception_handler(Exception)

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Projets{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if is_chef %}Pipeline des projets{% else %}Projets à produire{% endif %}</h1>
+    <p class="muted">{% if is_chef %}De l'import du plan à la fin de production.{% else %}Projets validés, en production ou terminés.{% endif %}</p>
+  </div>
+  {% if is_chef %}<a class="btn btn-primary" href="/projets/nouveau">Nouveau projet</a>{% endif %}
+</div>
+<div id="board" class="board" aria-live="polite"><p class="muted">Chargement…</p></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/projets.js"></script>{% endblock %}

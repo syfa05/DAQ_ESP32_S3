@@ -33,7 +33,9 @@ def logout(
     db: Session = Depends(get_db), settings: Settings = Depends(get_settings_dep),
 ) -> None:
     auth_service.close_session(db, auth.session)
-    response.delete_cookie(settings.cookie_name, path="/")
+    response.delete_cookie(
+        settings.cookie_name, path="/", httponly=True, secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite)
 
 
 @router.get("/me", response_model=SessionOut)

@@ -91,6 +91,13 @@ def test_me_and_logout_flow(chef):
     assert c.get("/api/auth/me").status_code == 401
 
 
+def test_logout_clears_cookie_with_same_attributes(chef):
+    c, csrf = chef
+    r = c.post("/api/auth/logout", headers=csrf)
+    cookie = r.headers["set-cookie"].lower()
+    assert "max-age=0" in cookie and "httponly" in cookie and "samesite=strict" in cookie
+
+
 def test_logged_out_token_is_invalidated_server_side(app):
     c, csrf = login(app, "chef")
     token = c.cookies.get("brikia_session")

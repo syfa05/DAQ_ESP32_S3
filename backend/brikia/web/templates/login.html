@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block content %}
+<section class="login card">
+  <div class="brand brand-lg"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">BrikIA</span></div>
+  <p class="muted">Pilotage de la ligne de production de briques</p>
+  <form id="login-form" novalidate>
+    <label for="login">Identifiant</label>
+    <input id="login" name="login" autocomplete="username" autofocus required>
+    <label for="password">Mot de passe</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <p id="login-error" class="form-error" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit">Se connecter</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/login.js"></script>{% endblock %}

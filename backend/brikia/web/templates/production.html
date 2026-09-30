@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Production{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Production</h1>
+  <p class="muted">Suivi des ordres de fabrication.</p></div></div>
+<p class="sim-banner" role="note"><strong>Production simulée</strong> — aucune machine réelle n'est connectée en phase 1.</p>
+<section aria-labelledby="h-ready"><h2 id="h-ready">Projets prêts à lancer</h2><div id="ready" class="cards"></div></section>
+<section aria-labelledby="h-orders"><h2 id="h-orders">Ordres de production</h2><div id="orders" class="stack" aria-live="polite"><p class="muted">Chargement…</p></div></section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/production.js"></script>{% endblock %}
