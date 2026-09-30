@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     sim_blocks_per_second: float = Field(default=40.0, gt=0)
     # Si défini (1-99) : la ligne simulée tombe en défaut à ce % d'avancement.
     sim_fault_at_percent: int | None = Field(default=None, ge=1, le=99)
+
+    # --- Seed de démonstration (optionnel ; sinon mots de passe générés) ---
+    seed_chef_password: SecretStr | None = None
+    seed_operateur_password: SecretStr | None = None
 
     # --- Logs ---------------------------------------------------------
     log_level: str = "INFO"

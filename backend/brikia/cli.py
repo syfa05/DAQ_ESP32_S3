@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     p_r.add_argument("archive", type=Path)
     p_r.add_argument("--yes", action="store_true", help="Confirme l'écrasement des données")
     sub.add_parser("serve", help="Démarre le serveur (BRIKIA_HOST / BRIKIA_PORT)")
+    sub.add_parser("seed", help="Charge les données de DÉMONSTRATION (comptes + un projet par statut)")
     p_u = sub.add_parser("create-user", help="Crée un compte (mot de passe saisi au clavier)")
     p_u.add_argument("--login", required=True)
     p_u.add_argument("--nom", required=True)
@@ -47,6 +48,25 @@ def main(argv: list[str] | None = None) -> int:
                 proxy_headers=settings.behind_proxy,
                 forwarded_allow_ips="127.0.0.1" if settings.behind_proxy else None,
             )
+        elif args.cmd == "seed":
+            from .db import init_db, session_scope
+            from .seed import seed_demo
+
+            upgrade(settings)
+            init_db(settings)
+            with session_scope() as db:
+                report = seed_demo(db, settings)
+            print("Données de démonstration (développement uniquement).")
+            for name in report.created_projects:
+                print(f"  projet créé : {name}")
+            for name in report.skipped_projects:
+                print(f"  projet déjà présent : {name}")
+            if report.new_passwords:
+                print("\nComptes créés — mots de passe affichés UNE SEULE FOIS, notez-les :")
+                for login, pwd in report.new_passwords.items():
+                    print(f"  {login:<10} {pwd}")
+            for login in report.existing_users:
+                print(f"  compte « {login} » déjà présent : mot de passe inchangé")
         elif args.cmd == "create-user":
             import getpass
 
