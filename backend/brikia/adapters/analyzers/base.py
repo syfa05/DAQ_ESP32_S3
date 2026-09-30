@@ -18,11 +18,29 @@ class PlanFile:
     sha256: str
 
 
+class AnalyzerUnavailable(Exception):
+    """Une bibliothèque optionnelle (extra ``phase2``) n'est pas installée.
+
+    Volontairement PAS une ``DomainError`` : c'est un problème d'installation,
+    que le répartiteur traduit selon le mode d'analyse (repli simulé signalé,
+    ou refus explicite).
+    """
+
+    def __init__(self, label: str, package: str) -> None:
+        super().__init__(f"{label} : module « {package} » non installé")
+        self.label = label
+        self.package = package
+
+
 class PlanAnalyzer(Protocol):
     """Contrat d'analyse de plan.
 
-    Phase 1 : ``SimulatedPlanAnalyzer``. Phase 2 : ``StepPlanAnalyzer`` /
-    ``IfcPlanAnalyzer`` sans modification du pipeline.
+    Phase 1 : ``SimulatedPlanAnalyzer``. Phase 2 : ``IfcPlanAnalyzer``,
+    ``StepPlanAnalyzer`` et ``DxfPlanAnalyzer``, choisis par extension via
+    ``ExtensionPlanAnalyzer``, sans modification du pipeline.
+
+    Un analyseur doit lever ``AnalysisFailed`` (message français) si le fichier
+    est illisible ou ne contient aucun mur exploitable.
     """
 
     name: str

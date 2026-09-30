@@ -68,7 +68,7 @@ def _demo_plan(analyzer: SimulatedPlanAnalyzer, scenario: str, label: str) -> by
         content = f"%PDF-1.4\n% BrikIA plan de démonstration — {label} — {i}\n".encode()
         plan = PlanFile(Path("demo.pdf"), "demo.pdf", ".pdf", len(content),
                         hashlib.sha256(content).hexdigest())
-        if analyzer.analyse(plan).notes[0].endswith(scenario):
+        if analyzer.analyse(plan).notes[-1].endswith(scenario):  # dernière note = scénario
             return content
     raise RuntimeError(f"Aucun contenu de démonstration pour le scénario {scenario!r}")
 

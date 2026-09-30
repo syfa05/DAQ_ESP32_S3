@@ -53,6 +53,9 @@ class SimulatedPlanAnalyzer:
         scenario = _NAMES[index]
         return ProjectGeometry(
             walls=SCENARIOS[scenario],
-            source="simulé",
-            notes=(f"Scénario de démonstration : {scenario}",),
+            source="simulated",
+            notes=(
+                "Analyse SIMULÉE : le contenu du plan n'a pas été lu.",
+                f"Scénario de démonstration : {scenario}",
+            ),
         )

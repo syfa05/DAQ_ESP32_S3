@@ -51,6 +51,8 @@ class ProjectOut(BaseModel):
     plan_original_name: str | None
     plan_size: int | None
     plan_sha256: str | None
+    analysis_source: str | None = None
+    analysis_notes: list[str] | None = None
     created_at: datetime
     validated_at: datetime | None
     completed_at: datetime | None

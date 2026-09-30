@@ -51,6 +51,8 @@ def analyse_project(db: Session, settings: Settings, analyzer: PlanAnalyzer,
         # Transition gardée d'abord : si une requête concurrente a déjà
         # transitionné, on échoue avant d'insérer le moindre mur.
         projects.transition(db, project, ProjectStatus.A_OPTIMISER)
+        project.analysis_source = geometry.source
+        project.analysis_notes = list(geometry.notes)
         for w in geometry.walls:
             wall = Wall(project_id=project.id, nom=w.nom, longueur_mm=w.longueur_mm,
                         hauteur_mm=w.hauteur_mm, is_corner=w.is_corner)

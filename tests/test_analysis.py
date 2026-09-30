@@ -41,19 +41,21 @@ def test_same_content_gives_same_result_regardless_of_name():
     a = SimulatedPlanAnalyzer()
     r1 = a.analyse(_plan(b"contenu", "a.pdf"))
     r2 = a.analyse(_plan(b"contenu", "autre-nom.ifc"))
-    assert r1 == r2 and r1.source == "simulé"
+    assert r1 == r2 and r1.source == "simulated"
 
 
 def test_scenario_is_stable_for_known_content():
     """Épingle le comportement : un changement d'algorithme casserait ce test."""
     geo = SimulatedPlanAnalyzer().analyse(_plan(F3_CONTENT))
-    assert geo.notes == ("Scénario de démonstration : Maison type F3",)
+    # Phase 2 : l'analyse simulée se déclare toujours comme telle dans ses notes.
+    assert geo.notes == ("Analyse SIMULÉE : le contenu du plan n'a pas été lu.",
+                         "Scénario de démonstration : Maison type F3")
     assert len(geo.walls) == 6
 
 
 def test_all_three_scenarios_reachable_and_valid():
     a = SimulatedPlanAnalyzer()
-    seen = {a.analyse(_plan(f"c{i}".encode())).notes[0] for i in range(60)}
+    seen = {a.analyse(_plan(f"c{i}".encode())).notes[-1] for i in range(60)}
     assert len(seen) == len(SCENARIOS) == 3
     for walls in SCENARIOS.values():
         validate_geometry(ProjectGeometry(walls))
@@ -213,3 +215,33 @@ def test_unauthenticated_and_unknown_project(client, chef):
     assert client.post("/api/projects/1/analyse").status_code == 401
     c, csrf = chef
     assert c.post("/api/projects/999/analyse", headers=csrf).status_code == 404
+
+
+# --- Phase 2 : provenance de l'analyse conservée et exposée -------------------------
+def test_analysis_source_and_notes_are_stored_and_exposed(chef):
+    c, csrf = chef
+    pid = _create(c, csrf, F3_CONTENT)
+    before = c.get(f"/api/projects/{pid}").json()
+    assert before["analysis_source"] is None and before["analysis_notes"] is None
+    d = c.post(f"/api/projects/{pid}/analyse", headers=csrf).json()
+    assert d["analysis_source"] == "simulated"
+    assert d["analysis_notes"][0].startswith("Format PDF") and "SIMULÉE" in d["analysis_notes"][0]
+    assert c.get(f"/api/projects/{pid}").json()["analysis_notes"] == d["analysis_notes"]
+    assert c.get("/api/projects").json()[0]["analysis_source"] == "simulated"
+
+
+def test_real_mode_without_module_refuses_and_leaves_project_untouched(app, chef):
+    from brikia.adapters.analyzers.base import AnalyzerUnavailable
+    from brikia.adapters.analyzers.dispatch import ExtensionPlanAnalyzer
+
+    def missing():
+        raise AnalyzerUnavailable("IFC", "ifcopenshell")
+
+    app.state.plan_analyzer = ExtensionPlanAnalyzer("real", {".ifc": missing})
+    c, csrf = chef
+    pid = c.post("/api/projects", headers=csrf, data={"nom": "IFC réel"},
+                 files={"fichier": ("p.ifc", io.BytesIO(b"ISO-10303-21;"))}).json()["id"]
+    r = c.post(f"/api/projects/{pid}/analyse", headers=csrf)
+    assert r.status_code == 422 and "n'est pas disponible" in r.json()["detail"]
+    d = c.get(f"/api/projects/{pid}").json()
+    assert d["status"] == "a_analyser" and d["walls"] == [] and d["analysis_source"] is None

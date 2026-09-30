@@ -78,6 +78,9 @@ class Project(Base):
     plan_original_name: Mapped[str | None] = mapped_column(String(255))
     plan_size: Mapped[int | None] = mapped_column(Integer)
     plan_sha256: Mapped[str | None] = mapped_column(String(64))
+    # Provenance de la géométrie : simulated | ifc | step | dxf, et avertissements.
+    analysis_source: Mapped[str | None] = mapped_column(String(20))
+    analysis_notes: Mapped[list | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(
         String(20), default=ProjectStatus.A_ANALYSER.value, index=True
     )

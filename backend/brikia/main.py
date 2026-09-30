@@ -8,7 +8,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pathlib import Path
 
 from . import __version__
-from .adapters.analyzers.simulated import SimulatedPlanAnalyzer
+from .adapters.analyzers.dispatch import build_plan_analyzer
 from .api import audit as audit_api
 from .api import auth as auth_api
 from .adapters.layout.rule_based import DefaultRuleBasedLayoutEngine
@@ -41,7 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.throttle = LoginThrottle()
     # Point unique de choix des adaptateurs (analyseur réel en phase 2).
-    app.state.plan_analyzer = SimulatedPlanAnalyzer()
+    app.state.plan_analyzer = build_plan_analyzer(settings)
     rules = (LayoutRules.from_file(settings.layout_rules_file)
              if settings.layout_rules_file else LayoutRules())
     app.state.layout_engine = DefaultRuleBasedLayoutEngine(rules)

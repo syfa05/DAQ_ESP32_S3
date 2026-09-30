@@ -12,7 +12,7 @@ def test_defaults_are_local_and_http_cookie(monkeypatch, tmp_path):
     assert s.host == "127.0.0.1"
     assert s.cookie_secure is False
     assert s.max_upload_bytes == 50 * 1024 * 1024
-    assert s.allowed_extensions == [".step", ".stp", ".ifc", ".pdf"]
+    assert s.allowed_extensions == [".step", ".stp", ".ifc", ".dxf", ".pdf"]
 
 
 def test_host_and_cookie_configurable_by_env(monkeypatch, tmp_path):

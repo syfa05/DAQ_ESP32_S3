@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     # --- Fichiers importés -------------------------------------------
     max_upload_mb: int = 50
     allowed_extensions: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: [".step", ".stp", ".ifc", ".pdf"]
+        default_factory=lambda: [".step", ".stp", ".ifc", ".dxf", ".pdf"]
     )
 
     # Règles de calepinage temporaires : fichier JSON de surcharges (optionnel).
@@ -66,6 +66,22 @@ class Settings(BaseSettings):
     # --- Seed de démonstration (optionnel ; sinon mots de passe générés) ---
     seed_chef_password: SecretStr | None = None
     seed_operateur_password: SecretStr | None = None
+
+    # --- Analyse des plans (phase 2) ---------------------------------
+    # auto      : lecture réelle (IFC, STEP, DXF) si le module est installé ; sinon
+    #             (ou pour un PDF) analyse SIMULÉE, toujours signalée à l'utilisateur ;
+    # real      : lecture réelle uniquement, refus explicite sinon ;
+    # simulated : comportement de la phase 1 (scénarios de démonstration).
+    analyzer_mode: Literal["auto", "real", "simulated"] = "auto"
+    # DXF (2D) : le plan ne contient ni hauteurs ni ouvertures typées ; valeurs par défaut.
+    dxf_wall_height_mm: int = Field(default=2700, ge=1000, le=10000)
+    dxf_door_height_mm: int = Field(default=2100, ge=1000, le=4000)
+    dxf_window_height_mm: int = Field(default=1200, ge=300, le=3000)
+    # Expressions régulières (insensibles à la casse) reconnaissant les calques de murs
+    # et d'ouvertures d'un DXF ; à adapter aux conventions du bureau d'études.
+    dxf_wall_layers: str = r"wall|mur|cloison|partition|paroi|refend|muro"
+    dxf_door_layers: str = r"door|porte|puerta"
+    dxf_window_layers: str = r"window|fen[eê]tre|vitr|ventana"
 
     # --- Logs ---------------------------------------------------------
     log_level: str = "INFO"
