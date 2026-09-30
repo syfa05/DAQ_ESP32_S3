@@ -12,6 +12,7 @@ ne concerne que l'absence d'un module optionnel ou un format non analysable.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 from collections.abc import Callable
 from dataclasses import replace
@@ -20,6 +21,7 @@ from typing import Literal
 from ...domain.errors import AnalysisFailed
 from ...domain.geometry import ProjectGeometry
 from .base import AnalyzerUnavailable, PlanAnalyzer, PlanFile
+from .isolation import run_isolated
 from .simulated import SimulatedPlanAnalyzer
 
 log = logging.getLogger("brikia.analyzers")
@@ -28,14 +30,20 @@ Mode = Literal["auto", "real", "simulated"]
 
 # Extension -> libellé du format (messages utilisateur).
 FORMAT_LABELS = {".ifc": "IFC", ".step": "STEP", ".stp": "STEP", ".dxf": "DXF", ".pdf": "PDF"}
+# Extension -> (format, module Python importé, paquet pip) ; vérifié sans importer le module.
+_REQUIREMENTS = {".ifc": ("IFC", "ifcopenshell", "ifcopenshell"), ".step": ("STEP", "OCP", "cadquery-ocp"),
+                 ".stp": ("STEP", "OCP", "cadquery-ocp"), ".dxf": ("DXF", "ezdxf", "ezdxf")}
 
 
 class ExtensionPlanAnalyzer:
     name = "auto"
 
     def __init__(self, mode: Mode, factories: dict[str, Callable[[], PlanAnalyzer]],
-                 simulated: PlanAnalyzer | None = None) -> None:
+                 simulated: PlanAnalyzer | None = None, *, settings=None, timeout_s: float = 180.0) -> None:  # noqa: ANN001
+        """``settings`` non nul => les analyseurs réels s'exécutent dans un processus séparé."""
         self.mode = mode
+        self._settings = settings
+        self._timeout_s = timeout_s
         self._factories = {k.lower(): v for k, v in factories.items()}
         self._simulated = simulated or SimulatedPlanAnalyzer()
         self._cache: dict[str, PlanAnalyzer] = {}
@@ -51,6 +59,13 @@ class ExtensionPlanAnalyzer:
         if ext not in self._cache:
             self._cache[ext] = self._factories[ext]()  # peut lever AnalyzerUnavailable
         return self._cache[ext]
+
+    def _analyse_isolated(self, ext: str, file: PlanFile) -> ProjectGeometry:
+        label, module, package = _REQUIREMENTS[ext]
+        if importlib.util.find_spec(module) is None:   # sans importer le module dans le serveur
+            raise AnalyzerUnavailable(label, package)
+        return run_isolated(_analyse_in_child, (self._settings.model_dump(), ext, file),
+                            self._timeout_s, what=f"plan {label}")
 
     def analyse(self, file: PlanFile) -> ProjectGeometry:
         ext = file.extension.lower()
@@ -70,6 +85,8 @@ class ExtensionPlanAnalyzer:
                       "Importez un plan IFC, STEP ou DXF pour une analyse réelle.")
 
         try:
+            if self._settings is not None:
+                return self._analyse_isolated(ext, file)
             analyzer = self._real_analyzer(ext)
         except AnalyzerUnavailable as exc:
             log.warning("Analyseur %s indisponible : %s", label, exc)
@@ -84,8 +101,8 @@ class ExtensionPlanAnalyzer:
         return analyzer.analyse(file)
 
 
-def build_plan_analyzer(settings) -> ExtensionPlanAnalyzer:  # noqa: ANN001
-    """Assemble le répartiteur ; les imports lourds sont différés à la 1re utilisation."""
+def _factories(settings) -> dict[str, Callable[[], PlanAnalyzer]]:  # noqa: ANN001
+    """Fabriques des analyseurs réels ; les imports lourds sont différés à la 1re utilisation."""
 
     def ifc() -> PlanAnalyzer:
         from .ifc import IfcPlanAnalyzer
@@ -99,7 +116,19 @@ def build_plan_analyzer(settings) -> ExtensionPlanAnalyzer:  # noqa: ANN001
         from .dxf import DxfOptions, DxfPlanAnalyzer
         return DxfPlanAnalyzer(DxfOptions.from_settings(settings))
 
+    return {".ifc": ifc, ".step": step, ".stp": step, ".dxf": dxf}
+
+
+def _analyse_in_child(settings_dump: dict, ext: str, file: PlanFile) -> ProjectGeometry:
+    """Exécuté dans le processus fils : reconstruit l'analyseur depuis la configuration."""
+    from ...config import Settings
+
+    settings = Settings(_env_file=None, **settings_dump)
+    return _factories(settings)[ext]().analyse(file)
+
+
+def build_plan_analyzer(settings) -> ExtensionPlanAnalyzer:  # noqa: ANN001
     return ExtensionPlanAnalyzer(
-        settings.analyzer_mode,
-        {".ifc": ifc, ".step": step, ".stp": step, ".dxf": dxf},
-    )
+        settings.analyzer_mode, _factories(settings),
+        settings=settings if settings.analysis_isolated else None,
+        timeout_s=settings.analysis_timeout_s)

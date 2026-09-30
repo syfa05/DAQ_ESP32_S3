@@ -8,6 +8,12 @@ export const STATUS_LABELS = {
 export const PIPELINE = ['a_analyser', 'a_optimiser', 'a_valider', 'valide', 'en_production', 'termine'];
 export const OPENING_LABELS = { fenetre: 'fenêtre', porte: 'porte', vitrine: 'vitrine', portail: 'portail' };
 export const openingLabel = (t) => OPENING_LABELS[t] || t;
+export const SOURCE_LABELS = {
+  ifc: 'Lecture réelle — IFC', step: 'Lecture réelle — STEP (heuristique)',
+  dxf: 'Lecture réelle — DXF (approximation 2D)', simulated: 'Analyse SIMULÉE',
+};
+export const SOURCE_SHORT = { ifc: 'IFC', step: 'STEP', dxf: 'DXF', simulated: 'simulé' };
+export const sourceBadge = (src) => h('span', { class: `badge src-${src}` }, SOURCE_LABELS[src] || src);
 export const CATEGORY_LABELS = { standard: 'Standard', angle: 'Angle', chainage: 'Chaînage', linteau: 'Linteau' };
 
 export const statusBadge = (status) =>

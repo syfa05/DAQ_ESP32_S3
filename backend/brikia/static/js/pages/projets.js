@@ -1,7 +1,7 @@
 import { get } from '../lib/api.js';
 import { h, replace } from '../lib/dom.js';
 import * as fmt from '../lib/format.js';
-import { PIPELINE, STATUS_LABELS, showError, statusBadge } from '../lib/ui.js';
+import { PIPELINE, SOURCE_SHORT, STATUS_LABELS, showError, statusBadge } from '../lib/ui.js';
 
 const isChef = document.body.dataset.role === 'chef_projet';
 const COLUMNS = isChef ? PIPELINE : ['valide', 'en_production', 'termine'];
@@ -11,7 +11,8 @@ function card(p) {
   return h('a', { class: `pcard st-${p.status}`, href: `/projets/${p.id}` },
     h('div', { class: 't' }, p.nom),
     h('div', { class: 'm' }, [p.ville, p.architecte].filter(Boolean).join(' · ') || '—'),
-    h('div', { class: 'm mono' }, `#${p.id} · ${fmt.date(p.created_at)}`));
+    h('div', { class: 'm mono' }, `#${p.id} · ${fmt.date(p.created_at)}`,
+      p.analysis_source ? h('span', { class: `tag src-${p.analysis_source}` }, SOURCE_SHORT[p.analysis_source] || p.analysis_source) : null));
 }
 
 function render(projects) {

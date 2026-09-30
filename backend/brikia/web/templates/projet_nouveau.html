@@ -2,7 +2,8 @@
 {% block title %}Nouveau projet{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Nouveau projet</h1>
-  <p class="muted">Importez le plan de l'architecte. Son contenu n'est pas encore lu : l'analyse est simulée en phase 1.</p></div></div>
+  <p class="muted">Importez le plan de l'architecte. BrikIA lit les plans <strong>IFC</strong> (modèle 3D), <strong>STEP</strong> (solides 3D) et
+    <strong>DXF</strong> (plan 2D, approximation). Un PDF n'est pas lu : son analyse est simulée.</p></div></div>
 <form id="project-form" class="card form-card" novalidate
       data-max-mb="{{ settings.max_upload_mb }}" data-ext="{{ settings.allowed_extensions | join(',') }}">
   <label for="nom">Nom du projet</label>

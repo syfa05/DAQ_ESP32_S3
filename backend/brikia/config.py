@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     dxf_door_layers: str = r"door|porte|puerta"
     dxf_window_layers: str = r"window|fen[eê]tre|vitr|ventana"
 
+    # Les analyseurs natifs s'exécutent dans un processus séparé (un fichier malformé ne peut pas
+    # faire tomber le serveur) avec un délai maximal.
+    analysis_isolated: bool = True
+    analysis_timeout_s: int = Field(default=180, ge=10, le=3600)
     # STEP : axe vertical du modèle. « auto » = Z, sauf évidence forte d'un modèle en Y vertical.
     step_up_axis: Literal["auto", "z", "y"] = "auto"
 

@@ -2,7 +2,7 @@ import { get, post, ApiError } from '../lib/api.js';
 import { h, replace } from '../lib/dom.js';
 import * as fmt from '../lib/format.js';
 import { orderCard } from '../lib/orderview.js';
-import { PIPELINE, STATUS_LABELS, busy, confirmDialog, openingLabel, showError, statusBadge, toast } from '../lib/ui.js';
+import { PIPELINE, STATUS_LABELS, busy, confirmDialog, openingLabel, showError, sourceBadge, statusBadge, toast } from '../lib/ui.js';
 import { wallGrid } from '../lib/wallgrid.js';
 
 const id = Number(document.querySelector('main').dataset.projectId);
@@ -42,6 +42,14 @@ function actionButton(label, cls, handler) {
   return btn;
 }
 
+function analyseHint(name) {
+  const ext = (name || '').toLowerCase().split('.').pop();
+  if (ext === 'ifc') return 'Le modèle IFC sera lu : murs (découpés en segments droits), ouvertures et niveaux.';
+  if (ext === 'step' || ext === 'stp') return 'Le fichier STEP sera lu : les murs sont reconnus par leur forme (heuristique).';
+  if (ext === 'dxf') return 'Le plan DXF sera lu : approximation 2D (hauteurs par défaut, un seul niveau).';
+  return 'Un PDF n\'est pas lu : l\'analyse sera SIMULÉE (scénario de démonstration). Importez un IFC, STEP ou DXF pour une lecture réelle.';
+}
+
 function totalsSummary(layout) {
   const bom = layout.bom;
   return h('p', {}, `${fmt.int(bom.total_blocs)} blocs, durée estimée ${fmt.duration(bom.duree_estimee_min)} (indicative).`);
@@ -54,7 +62,7 @@ function actions(p, layout) {
   if (isChef && st === 'a_analyser') {
     bar.append(actionButton('Lancer l\'analyse', 'btn-primary', (b) => act(b,
       () => post(`/api/projects/${id}/analyse`), 'Analyse terminée : les murs ont été détectés.')));
-    hint = 'En phase 1, le contenu du plan n\'est pas lu : l\'analyse produit un scénario de démonstration déterministe.';
+    hint = analyseHint(p.plan_original_name);
   } else if (isChef && st === 'a_optimiser') {
     bar.append(actionButton('Lancer le calepinage IA', 'btn-primary', (b) => act(b,
       () => post(`/api/projects/${id}/calepinage`), 'Calepinage calculé.')));
@@ -98,6 +106,17 @@ function stepper(st) {
       'aria-current': i === idx ? 'step' : null }, STATUS_LABELS[s])));
 }
 
+function analysisPanel(p) {
+  if (!p.analysis_source) return null;
+  const warn = p.analysis_source === 'simulated';
+  const notes = (p.analysis_notes || []).map((n, i) =>
+    h('li', { class: warn && i === 0 ? 'alert' : '' }, n));
+  return h('section', { class: `card analysis ${warn ? 'warn' : ''}`, 'aria-labelledby': 'h-analysis' },
+    h('div', { class: 'head' }, h('h2', { id: 'h-analysis', class: 'inline' }, 'Analyse du plan'), sourceBadge(p.analysis_source)),
+    warn ? h('p', { role: 'alert' }, 'Ces murs ne proviennent PAS de votre plan : ils sont générés par le simulateur de démonstration.') : null,
+    notes.length ? h('ul', { class: 'notes' }, notes) : null);
+}
+
 function wallsTable(walls) {
   let net = 0;
   const rows = walls.map((w) => {
@@ -113,7 +132,7 @@ function wallsTable(walls) {
       h('td', { class: 'num mono' }, fmt.dec2(w.surface_nette_m2)));
   });
   return h('section', { 'aria-labelledby': 'h-walls' }, h('h2', { id: 'h-walls' }, 'Murs analysés'),
-    h('div', { class: 'card table-card' }, h('table', {},
+    h('div', { class: `card table-card ${walls.length > 25 ? 'scroll' : ''}` }, h('table', {},
       h('thead', {}, h('tr', {}, ...['Mur', 'Long. (m)', 'Haut. (m)', 'Angle', 'Ouvertures', 'Brute (m²)', 'Ouv. (m²)', 'Nette (m²)']
         .map((t, i) => h('th', { class: i === 1 || i === 2 || i >= 5 ? 'num' : '' }, t)))),
       h('tbody', {}, rows),
@@ -149,8 +168,34 @@ function layoutSection(project, layout) {
     h('p', { class: 'note' }, `Durée de production estimée : ${fmt.duration(bom.duree_estimee_min)} (indicatif, valeurs de démonstration).`),
     h('h3', {}, 'Schéma des murs'),
     h('p', { class: 'note' }, 'Représentation schématique : elle aide à comprendre le calepinage mais n\'est pas un rendu physique exact ni une simulation structurelle. Les quantités font foi.'),
-    h('div', { class: 'wallgrids' }, layout.murs.map((m) =>
-      wallsById[m.wall_id] ? wallGrid(wallsById[m.wall_id], m, layout.parametres, produitByCode) : null)));
+    wallGridsSection(project, layout, produitByCode, wallsById));
+}
+
+// Les schémas (plusieurs milliers de rectangles SVG par mur) ne sont construits qu'à l'ouverture
+// du mur : un bâtiment de 300 murs reste fluide. Petit projet (<= 8 murs) : tout est ouvert.
+function wallGridsSection(project, layout, produitByCode, wallsById) {
+  const eager = layout.murs.length <= 8;
+  const items = layout.murs.filter((m) => wallsById[m.wall_id]).map((m) => {
+    const wall = wallsById[m.wall_id];
+    const body = h('div');
+    const det = h('details', { class: 'wallgrid', 'data-name': m.wall_nom.toLowerCase() },
+      h('summary', {}, h('strong', {}, m.wall_nom),
+        h('span', { class: 'muted mono small' }, `${fmt.mm2m(wall.longueur_mm)} × ${fmt.mm2m(wall.hauteur_mm)} m${wall.is_corner ? ' · angle' : ''} · ${fmt.int(m.total)} blocs`)),
+      body);
+    const build = () => { if (!body.firstChild) body.append(wallGrid(wall, m, layout.parametres, produitByCode, { bare: true })); };
+    det.addEventListener('toggle', () => { if (det.open) build(); });
+    if (eager) { det.open = true; build(); }
+    return det;
+  });
+  const holder = h('div', { class: 'wallgrids' }, items);
+  const filter = h('input', { type: 'search', placeholder: 'Filtrer les murs (nom, niveau)…', 'aria-label': 'Filtrer les murs' });
+  filter.addEventListener('input', () => {
+    const q = filter.value.trim().toLowerCase();
+    for (const d of items) d.hidden = q !== '' && !d.dataset.name.includes(q);
+  });
+  return h('div', {},
+    items.length > 8 ? h('div', { class: 'toolbar' }, filter, h('span', { class: 'muted small' }, `${items.length} murs — ouvrez un mur pour voir son schéma.`)) : null,
+    holder);
 }
 
 function render(project, layout, order) {
@@ -170,6 +215,7 @@ function render(project, layout, order) {
       statusBadge(st)),
     stepper(st),
     actions(project, layout),
+    analysisPanel(project),
   ];
   if (order) {
     orderView = orderCard(order);

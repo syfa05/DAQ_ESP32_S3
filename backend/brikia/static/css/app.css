@@ -176,3 +176,26 @@ dialog h2 { margin-top: 0; }
 
 .nowrap { white-space: nowrap; }
 td .actionbar { flex-wrap: nowrap; gap: .4rem; }
+
+/* --- Provenance de l'analyse --- */
+.src-ifc { color: var(--moss); } .src-step, .src-dxf { color: var(--ocre); } .src-simulated { color: var(--danger); }
+.analysis .head { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+.notes { margin: .6rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: .85rem; }
+.notes li { margin: .2rem 0; } .notes li.alert { color: var(--text); }
+.tag { font: 500 .7rem var(--font-mono); text-transform: uppercase; letter-spacing: .05em; padding: 0 6px;
+  border: 1px solid currentColor; border-radius: 4px; }
+.pcard .tag { margin-left: .4rem; }
+
+/* --- Grands projets : tableau défilant, schémas à la demande --- */
+.table-card.scroll { max-height: 520px; overflow: auto; }
+.table-card.scroll thead th { position: sticky; top: 0; z-index: 1; }
+.toolbar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: .4rem 0 .8rem; }
+.toolbar input { max-width: 320px; }
+details.wallgrid > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between;
+  gap: .5rem; flex-wrap: wrap; color: var(--text); font-size: 1rem; }
+details.wallgrid > summary::-webkit-details-marker { display: none; }
+details.wallgrid > summary::before { content: "▸"; color: var(--muted); margin-right: .4rem; }
+details.wallgrid[open] > summary::before { content: "▾"; }
+details.wallgrid .svgwrap { margin-top: .5rem; }
+details.wallgrid .legend { margin-top: .5rem; }
+.analysis .head h2 { margin: 0; }

@@ -50,7 +50,7 @@ export function buildCells(wall, quantities, params) {
   return { grid, rows, cols };
 }
 
-export function wallGrid(wall, layoutWall, params, produitByCode) {
+export function wallGrid(wall, layoutWall, params, produitByCode, { bare = false } = {}) {
   const quantities = layoutWall?.quantites || [];
   const { grid, rows, cols } = buildCells(wall, quantities, params);
   const catProduct = {};
@@ -76,6 +76,7 @@ export function wallGrid(wall, layoutWall, params, produitByCode) {
       h('span', { class: 'mono' }, q.code), h('span', { class: 'mono' }, `× ${int(q.quantite)}`))),
     wall.openings.length ? h('li', {}, h('span', { class: 'sw cell-open-sw' }), 'ouverture (vide)') : null);
 
+  if (bare) return h('div', {}, h('div', { class: 'svgwrap' }, root), legend);
   return h('article', { class: 'wallgrid' },
     h('header', {},
       h('strong', {}, wall.nom),
