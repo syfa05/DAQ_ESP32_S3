@@ -5,13 +5,17 @@ from sqlalchemy.orm import Session
 
 from ..config import Settings
 from ..adapters.analyzers.base import PlanAnalyzer
+from ..adapters.production.base import ProductionGateway
 from ..deps import (
-    current_user, get_db, get_plan_analyzer, get_settings_dep, require_chef_projet,
+    current_user, get_db, get_plan_analyzer, get_production_gateway, get_settings_dep,
+    require_chef_projet,
 )
 from ..domain.errors import PayloadTooLarge
 from ..models import User
 from ..schemas.projects import ProjectDetail, ProjectOut, ProjectUpdate
 from ..services import analysis as analysis_svc
+from ..services import validation as validation_svc
+from ..services import production as production_svc
 from ..services import projects as svc
 
 router = APIRouter(prefix="/api/projects", tags=["projets"])
@@ -33,7 +37,10 @@ def create_project(
 
 
 @router.get("", response_model=list[ProjectOut])
-def list_projects(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def list_projects(user: User = Depends(current_user), db: Session = Depends(get_db),
+                  gateway: ProductionGateway = Depends(get_production_gateway)):
+    # Rapatrie l'état des productions actives pour que la liste ne soit pas périmée.
+    production_svc.refresh_active_orders(db, gateway)
     return svc.list_projects(db, user)
 
 
@@ -58,3 +65,10 @@ def analyse_project(
 ):
     project = svc.get_project(db, user, project_id)
     return analysis_svc.analyse_project(db, settings, analyzer, project)
+
+
+@router.post("/{project_id}/validation", response_model=ProjectDetail)
+def validate_project(project_id: int, user: User = Depends(require_chef_projet),
+                     db: Session = Depends(get_db)):
+    project = svc.get_project(db, user, project_id)
+    return validation_svc.validate_project(db, user, project)

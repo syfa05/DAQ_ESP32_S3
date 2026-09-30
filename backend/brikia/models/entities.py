@@ -236,6 +236,7 @@ class ProductionOrder(Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     started_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    message: Mapped[str | None] = mapped_column(String(255))  # alarme / erreur de la ligne
 
     project: Mapped[Project] = relationship(back_populates="orders")
     lines: Mapped[list[ProductionOrderLine]] = relationship(

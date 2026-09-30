@@ -9,11 +9,14 @@ from pathlib import Path
 
 from . import __version__
 from .adapters.analyzers.simulated import SimulatedPlanAnalyzer
+from .api import audit as audit_api
 from .api import auth as auth_api
 from .adapters.layout.rule_based import DefaultRuleBasedLayoutEngine
 from .adapters.layout.rules_config import LayoutRules
 from .api import layout as layout_api
+from .adapters.production.simulated import SimulatedProductionGateway
 from .api import molds as molds_api
+from .api import production as production_api
 from .api import projects as projects_api
 from .api.errors import install_error_handlers
 from .config import Settings, get_settings
@@ -41,6 +44,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     rules = (LayoutRules.from_file(settings.layout_rules_file)
              if settings.layout_rules_file else LayoutRules())
     app.state.layout_engine = DefaultRuleBasedLayoutEngine(rules)
+    # Phase 3 : RaspberryPiProductionGateway remplacera le simulateur ici.
+    app.state.production_gateway = SimulatedProductionGateway(
+        settings.sim_blocks_per_second, settings.sim_fault_at_percent)
 
     # Même origine pour l'UI et l'API : volontairement aucun CORS.
     if settings.allowed_hosts != ["*"]:
@@ -62,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(projects_api.router)
     app.include_router(molds_api.router)
     app.include_router(layout_api.router)
+    app.include_router(production_api.router)
+    app.include_router(audit_api.router)
 
     @app.get("/api/health", tags=["système"])
     def health() -> dict[str, str]:

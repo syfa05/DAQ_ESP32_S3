@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from .adapters.analyzers.base import PlanAnalyzer
 from .adapters.layout.base import LayoutEngine
+from .adapters.production.base import ProductionGateway
 from .config import Settings
 from .db import get_session_factory
 from .domain.enums import Role
@@ -31,6 +32,10 @@ def get_plan_analyzer(request: Request) -> PlanAnalyzer:
 
 def get_layout_engine(request: Request) -> LayoutEngine:
     return request.app.state.layout_engine
+
+
+def get_production_gateway(request: Request) -> ProductionGateway:
+    return request.app.state.production_gateway
 
 
 def get_db() -> Iterator[Session]:

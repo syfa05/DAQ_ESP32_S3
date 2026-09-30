@@ -28,6 +28,8 @@ python3 -m venv .venv
 | `BRIKIA_COOKIE_SECURE` | `false` | `true` dès que l'accès se fait en HTTPS |
 | `BRIKIA_DATA_DIR` | `data` | Base, plans importés, sauvegardes, logs |
 | `BRIKIA_MAX_UPLOAD_MB` | `50` | Taille max d'un plan (`.step .stp .ifc .pdf`) |
+| `BRIKIA_SIM_BLOCKS_PER_SECOND` | `40` | Cadence de la ligne **simulée** (démo) |
+| `BRIKIA_SIM_FAULT_AT_PERCENT` | *(aucun)* | Provoque un défaut simulé à ce % d'avancement (1-99) |
 | `BRIKIA_LAYOUT_RULES_FILE` | *(aucun)* | JSON de surcharge des règles de calepinage **temporaires** (voir `adapters/layout/rules_config.py`) |
 
 ## Sauvegarde / restauration (multiplateforme)

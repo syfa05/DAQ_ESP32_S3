@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # Règles de calepinage temporaires : fichier JSON de surcharges (optionnel).
     layout_rules_file: Path | None = None
 
+    # --- Simulateur de production (phase 1, démonstration) -------------
+    sim_blocks_per_second: float = Field(default=40.0, gt=0)
+    # Si défini (1-99) : la ligne simulée tombe en défaut à ce % d'avancement.
+    sim_fault_at_percent: int | None = Field(default=None, ge=1, le=99)
+
     # --- Logs ---------------------------------------------------------
     log_level: str = "INFO"
 

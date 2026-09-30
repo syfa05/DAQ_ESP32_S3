@@ -56,3 +56,9 @@ class PayloadTooLarge(DomainError):
 
 class AnalysisFailed(DomainError):
     code = "analyse_echouee"
+
+
+class GatewayError(DomainError):
+    """La ligne de production (réelle ou simulée) n'a pas pu traiter l'ordre."""
+
+    code = "ligne_indisponible"
