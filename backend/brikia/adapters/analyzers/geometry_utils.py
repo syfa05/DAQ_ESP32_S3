@@ -123,20 +123,32 @@ def corner_keys(segments: Sequence[CornerCandidate], *, min_angle_deg: float = 6
 
     La tolérance vaut la plus grande épaisseur des deux murs (leurs axes
     s'arrêtent souvent à la face du mur voisin) plus ``slack_mm``.
+
+    Complexité quasi linéaire : les extrémités sont rangées dans une grille
+    dont la maille vaut la tolérance maximale, et seules les mailles voisines
+    sont comparées.
     """
     flagged: set[int] = set()
     by_level: dict[str, list[CornerCandidate]] = {}
     for s in segments:
         by_level.setdefault(s.level, []).append(s)
     for group in by_level.values():
-        dirs = {s.key: unit_vector(s.a, s.b) for s in group}
+        cell = max(s.thickness for s in group) + slack_mm
+        dirs = [unit_vector(s.a, s.b) for s in group]
+        grid: dict[tuple[int, int], list[tuple[int, Point]]] = {}
         for i, s in enumerate(group):
-            for t in group[i + 1:]:
-                if s.key in flagged and t.key in flagged:
-                    continue
-                if line_angle_deg(dirs[s.key], dirs[t.key]) < min_angle_deg:
-                    continue
-                tol = max(s.thickness, t.thickness) + slack_mm
-                if any(dist(p, q) <= tol for p in (s.a, s.b) for q in (t.a, t.b)):
-                    flagged.update((s.key, t.key))
+            for p in (s.a, s.b):
+                grid.setdefault((math.floor(p[0] / cell), math.floor(p[1] / cell)), []).append((i, p))
+        for i, s in enumerate(group):
+            for p in (s.a, s.b):
+                cx, cy = math.floor(p[0] / cell), math.floor(p[1] / cell)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        for j, q in grid.get((cx + dx, cy + dy), ()):
+                            if j <= i or (s.key in flagged and group[j].key in flagged):
+                                continue
+                            if dist(p, q) > max(s.thickness, group[j].thickness) + slack_mm:
+                                continue
+                            if line_angle_deg(dirs[i], dirs[j]) >= min_angle_deg:
+                                flagged.update((s.key, group[j].key))
     return flagged

@@ -79,3 +79,17 @@ def test_rectangle_of_four_walls_has_four_corner_walls():
     sq = [C(1, (0, 0), (8000, 0)), C(2, (8000, 0), (8000, 6000)),
           C(3, (8000, 6000), (0, 6000)), C(4, (0, 6000), (0, 0))]
     assert corner_keys(sq) == {1, 2, 3, 4}
+
+
+def test_corner_detection_scales_to_large_plans():
+    """3 000 segments : la détection doit rester quasi linéaire (l'ancienne version était en O(n²))."""
+    import time
+    segs = []
+    for i in range(1500):
+        x, y = (i % 40) * 6000, (i // 40) * 6000
+        segs.append(C(2 * i, (x, y), (x + 5000, y)))
+        segs.append(C(2 * i + 1, (x + 5000, y), (x + 5000, y + 5000)))
+    started = time.perf_counter()
+    flagged = corner_keys(segs)
+    assert len(flagged) == 3000                      # chaque paire horizontal/vertical forme un angle
+    assert time.perf_counter() - started < 3.0       # mesuré : ~0,05 s ; marge large pour les machines lentes

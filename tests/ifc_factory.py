@@ -38,8 +38,8 @@ class WallSpec:
 
 
 def build(path, walls: list[WallSpec], *, unit: str = "METRE", storeys=(("RDC", 0.0),),
-          extra_slab_opening: bool = False) -> None:
-    f = ifcopenshell.file(schema="IFC4")
+          extra_slab_opening: bool = False, schema: str = "IFC4") -> None:
+    f = ifcopenshell.file(schema=schema)
     k = 1000.0 if unit == "MILLIMETRE" else 1.0   # facteur m -> unité du fichier
 
     def pt(*xs):

@@ -58,6 +58,16 @@ def test_slab_opening_is_not_a_wall_opening(tmp_path):
     assert len(geo.walls) == 1 and geo.walls[0].openings == ()
 
 
+@pytest.mark.parametrize("schema", ["IFC2X3", "IFC4", "IFC4X3_ADD2"])
+def test_same_result_in_every_ifc_schema(tmp_path, schema):
+    """Les exports du marché sont en IFC2X3 (Revit, ArchiCAD), IFC4 ou IFC4X3."""
+    geo = analyse(tmp_path, [W("Façade", [(0, 0), (5, 0), (5, 3)], 2.7, 0.25, openings=[O("door", 1.0, 0.9, 2.1)])],
+                  schema=schema)
+    assert dims(geo) == [("RDC · Façade n°1.1", 5000, 2700, True, [("porte", 900, 2100)]),
+                         ("RDC · Façade n°1.2", 3000, 2700, True, [])]
+    assert schema.split("_")[0] in geo.notes[0]
+
+
 # --- axes polygonaux, angles ---------------------------------------------------------
 def test_polyline_axis_is_split_into_straight_walls_with_corners(tmp_path):
     geo = analyse(tmp_path, [W("Retour", [(0, 0), (4, 0), (4, 3)], 2.5, 0.2)])
