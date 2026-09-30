@@ -1,4 +1,4 @@
-# Architecture — BrikIA phase 1
+# Architecture — BrikIA (phases 1 et 2)
 
 Monolithe modulaire volontairement simple : un seul processus Python, une base SQLite, pas de
 Redis / Celery / microservices. Le domaine ne dépend ni de FastAPI ni de SQLAlchemy ; les
@@ -53,7 +53,7 @@ Après validation, le projet est figé.
 |---|---|
 | `users` | nom, login unique, hash argon2, rôle, actif |
 | `user_sessions` | hash du jeton (jamais le jeton), jeton CSRF, expiration |
-| `projects` | nom, ville, architecte, métadonnées du plan (chemin, nom, taille, SHA-256), statut, dates |
+| `projects` | nom, ville, architecte, métadonnées du plan (chemin, nom, taille, SHA-256), **source et avertissements de l'analyse** (`analysis_source`, `analysis_notes`), statut, dates |
 | `walls` / `openings` | murs (mm entiers, `is_corner`) et ouvertures (table dédiée, FK, cascade) |
 | `brick_shapes` | bibliothèque de moules (code unique, produit, **catégorie** standard/angle/chainage/linteau, dimensions optionnelles, disponible) |
 | `layout_runs` | un calcul de calepinage : moteur, règles utilisées (JSON d'audit), avertissements, durée estimée |
@@ -77,7 +77,7 @@ Choix justifiés :
 
 | Interface | Phase 1 | Contrat |
 |---|---|---|
-| `PlanAnalyzer` | `SimulatedPlanAnalyzer` | `analyse(PlanFile) -> ProjectGeometry` |
+| `PlanAnalyzer` | `ExtensionPlanAnalyzer` (répartiteur par extension) → `IfcPlanAnalyzer`, `DxfPlanAnalyzer`, `StepPlanAnalyzer`, ou `SimulatedPlanAnalyzer` | `analyse(PlanFile) -> ProjectGeometry` |
 | `LayoutEngine` | `DefaultRuleBasedLayoutEngine` | `calculate(walls, brick_shapes) -> LayoutResult` |
 | `ProductionGateway` | `SimulatedProductionGateway` | `send_order(OrderPayload)` / `get_status(lot_id)` |
 
@@ -86,6 +86,17 @@ Choix justifiés :
 - `ProductionGateway` reprend le contrat futur BrikIA → Raspberry Pi (`lot_id`,
   `quantites_par_forme`, état/progression) et l'envoi est **idempotent par `lot_id`**.
   Il ne transporte aucune commande de sécurité.
+
+### Analyse des plans (phase 2)
+
+`adapters/analyzers/` : `dispatch.py` choisit l'analyseur selon l'extension et le mode (`BRIKIA_ANALYZER_MODE`) ;
+`ifc.py`, `dxf.py`, `step.py` produisent la même `ProjectGeometry` ; `geometry_utils.py` (géométrie 2D pure, détection
+des angles quasi linéaire) est partagé ; `isolation.py` exécute chaque analyse réelle dans un **processus séparé**
+(`spawn`, délai maximal, 2 analyses simultanées au plus) : un plantage natif ou un blocage ne touche ni le serveur ni
+le projet. Règle de sécurité fonctionnelle : une géométrie **simulée** n'est jamais présentée comme réelle — tout repli
+ajoute un avertissement en tête des notes, conservé avec le projet (`analysis_source`, `analysis_notes`) et affiché.
+Un fichier réel illisible ou sans mur donne une erreur (`AnalysisFailed`), jamais un repli simulé. Détails :
+[analyse-des-plans.md](analyse-des-plans.md).
 
 ## Sécurité applicative
 
@@ -133,7 +144,7 @@ Pages : `/connexion`, `/`, `/projets/nouveau` (CP), `/projets/{id}`, `/moules`, 
 
 Alembic est le **seul** moyen de faire évoluer le schéma (`create_all()` n'est jamais utilisé).
 `0001` schéma initial · `0002` catégorie des moules + bibliothèque initiale (insérée une fois) ·
-`0003` message d'alarme des ordres. Mode batch activé (SQLite). Un test vérifie qu'il n'y a aucune
+`0003` message d'alarme des ordres · `0004` source et notes de l'analyse (les projets existants sont marqués « simulée »). Mode batch activé (SQLite). Un test vérifie qu'il n'y a aucune
 dérive entre modèles et migrations. SQLite : clés étrangères activées, mode WAL, `busy_timeout`.
 
 ## Stockage
@@ -162,4 +173,10 @@ reprise après redémarrage), ActionLog, seed, pages et absence de ressource ext
   ligne refuse). Sans effet avec le simulateur ; la passerelle réelle devra prévoir une annulation.
 - **Pas d'écran d'administration des comptes** : création par CLI (`create-user`), pas de changement
   de mot de passe dans l'interface.
-- **Contenu des plans non lu** (phase 2) : seule l'extension est contrôlée, pas la signature du fichier.
+- **Plans** : seule l'extension est contrôlée à l'import (pas la signature) ; un fichier invalide est rejeté à l'analyse
+  avec un message clair. Le **PDF** n'est pas lu. Une analyse ne peut pas être relancée : un plan corrigé s'importe dans
+  un nouveau projet.
+- **Lecture DXF et STEP approximative** (voir [analyse-des-plans.md](analyse-des-plans.md)) ; STEP validé uniquement sur
+  des fichiers générés ; IFC validé sur deux exports d'IFC Builder (pas sur des exports Revit/ArchiCAD).
+- **Isolation des analyses** : ≈ 0,5 s de surcoût par analyse ; testée sous Linux seulement (méthode `spawn`, prévue
+  multiplateforme).

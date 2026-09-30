@@ -22,11 +22,16 @@ Menu : **Projets · Moules · Production · Journal**.
 1. **Importer un plan** — *Projets → Nouveau projet* : nom, ville, architecte, fichier
    (`.step`, `.stp`, `.ifc`, `.pdf`, 50 Mo max). Le projet est créé « À analyser ».
    *En phase 1 le contenu du plan n'est pas lu.*
-2. **Analyser** — sur la fiche projet, *Lancer l'analyse* : les murs et leurs ouvertures
-   apparaissent avec leurs surfaces (brute, ouvertures, nette). Le projet passe « À optimiser ».
+2. **Analyser** — sur la fiche projet, *Lancer l'analyse* (quelques secondes pour un grand IFC) : les murs et leurs
+   ouvertures apparaissent avec leurs surfaces (brute, ouvertures, nette). Le projet passe « À optimiser ».
+   Le panneau **Analyse du plan** indique la **source** (*Lecture réelle — IFC*, *… DXF (approximation 2D)*,
+   *Analyse SIMULÉE*…) et les **avertissements** : lisez-le ! Une analyse **SIMULÉE** ne reflète pas votre plan.
+   Si le fichier est illisible, un message explique pourquoi et le projet reste « À analyser » : corrigez le fichier
+   et importez-le dans un **nouveau projet** (une analyse ne se relance pas).
 3. **Calepinage IA** — *Lancer le calepinage IA* : proposition de quantités par forme et par mur,
    **nomenclature (BOM)** regroupée par forme, durée indicative, et **schéma des murs** (grille de
-   blocs colorés par forme — illustratif, les quantités font foi). Les avertissements (ex. moule
+   blocs colorés par forme — illustratif, les quantités font foi). Pour un grand bâtiment, la liste des murs est
+   filtrable et le schéma d'un mur ne se construit que lorsqu'on le déplie. Les avertissements (ex. moule
    remplacé faute de disponibilité) s'affichent en ocre. Le projet passe « À valider ».
    Les règles de calcul sont **temporaires** (voir [simule-et-futur.md](simule-et-futur.md)).
 4. **Ajuster si besoin** — dans *Moules*, activer/désactiver une forme, puis *Recalculer le

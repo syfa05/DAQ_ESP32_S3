@@ -101,7 +101,14 @@ WantedBy=multi-user.target
 depuis le dossier du dépôt (ou un gestionnaire de service comme NSSM), sous un compte dédié sans
 privilèges d'administrateur. Les variables se placent dans le fichier `.env` du dossier de lancement.
 
-## 5. Mise en production — check-list
+## 5. Lecture des plans (option `phase2`)
+
+Installer `pip install -c constraints.txt -e ".[phase2]"` (≈ 200 Mo ; accès aux paquets nécessaire **à l'installation
+seulement**). En production, fixer `BRIKIA_ANALYZER_MODE=real` : si le module manque, l'analyse est **refusée** au lieu
+d'être simulée. Chaque analyse s'exécute dans un processus séparé (délai `BRIKIA_ANALYSIS_TIMEOUT_S`, 180 s ; au plus 2
+en parallèle) : prévoir de la mémoire pour ces processus (quelques centaines de Mo pour un grand IFC).
+
+## 6. Mise en production — check-list
 
 - [ ] `BRIKIA_ALLOWED_HOSTS` renseigné (plus de `*`).
 - [ ] Pare-feu limité au sous-réseau d'usine ; aucune redirection de port depuis Internet.
@@ -109,10 +116,11 @@ privilèges d'administrateur. Les variables se placent dans le fichier `.env` du
 - [ ] HTTPS via reverse proxy si le réseau n'est pas isolé ; `BRIKIA_COOKIE_SECURE=true`.
 - [ ] Sauvegardes planifiées et **restauration testée** (voir [sauvegarde.md](sauvegarde.md)).
 - [ ] Un seul processus BrikIA (ne pas lancer plusieurs workers).
+- [ ] Option `phase2` installée et `BRIKIA_ANALYZER_MODE=real` (pas d'analyse simulée par mégarde).
 - [ ] Horloge du PC correcte (horodatages, expiration des sessions, ActionLog).
 - [ ] Compte système de service sans droits d'administrateur ; `data/` non accessible aux autres utilisateurs.
 
-## 6. Fonctionnement hors ligne
+## 7. Fonctionnement hors ligne
 
 Aucune dépendance à Internet à l'exécution : pas de CDN, pas de police distante, pas d'API externe,
 pas d'IA en ligne. Seule l'**installation** des dépendances Python demande un accès aux paquets.

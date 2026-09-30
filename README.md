@@ -1,13 +1,14 @@
-# BrikIA — phase 1
+# BrikIA — phases 1 et 2
 
 Cerveau logiciel de la ligne de production de briques de terre comprimée (BTC) et de
 parpaings autobloquants. BrikIA relie le plan de l'architecte, le calepinage, la nomenclature
 (BOM), la validation par le chef de projet et l'ordre de fabrication.
 
-**Phase 1 = application locale complète, sans machine réelle** : FastAPI + SQLite + Alembic,
-interface Jinja2 + JavaScript léger, entièrement en français, **fonctionnement 100 % hors
-connexion**. L'analyse de plan, le calepinage « IA » (moteur de règles) et la production sont
-**simulés ou temporaires** — voir [docs/simule-et-futur.md](docs/simule-et-futur.md).
+**Phase 1** : application locale complète, sans machine réelle — FastAPI + SQLite + Alembic, interface
+Jinja2 + JavaScript léger, entièrement en français, **fonctionnement 100 % hors connexion**.
+**Phase 2** : lecture **réelle** des plans **IFC, STEP et DXF** (murs, ouvertures, niveaux) ; un PDF n'est pas lu.
+Le calepinage « IA » (moteur de règles) et la production restent **simulés ou temporaires** — voir
+[docs/simule-et-futur.md](docs/simule-et-futur.md) et [docs/analyse-des-plans.md](docs/analyse-des-plans.md).
 
 > BrikIA ne porte **aucune** logique de sécurité machine : cycle, verrouillages et arrêts
 > d'urgence restent de la seule responsabilité de l'automate.
@@ -27,19 +28,24 @@ Depuis la racine du dépôt :
 # Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -c constraints.txt -e ".[dev]"
+pip install -c constraints.txt -e ".[dev,phase2]"    # phase2 = lecture réelle IFC / STEP / DXF (≈ 200 Mo)
+# installation minimale (sans lecture réelle des plans) : pip install -c constraints.txt -e ".[dev]"
 ```
 
 ```powershell
 # Windows (PowerShell)
 py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -c constraints.txt -e ".[dev]"
+pip install -c constraints.txt -e ".[dev,phase2]"
 ```
 
 > `constraints.txt` fixe les versions des dépendances **validées** en phase 1 (sans lui, `pip` installerait
 > les dernières versions, non testées). Validé avec Python 3.11 sous Linux ; les commandes Windows
 > ci-dessus n'ont pas été exécutées dans l'environnement de développement.
+>
+> **Option `phase2`** : sans elle, BrikIA fonctionne mais tout plan est analysé par le **simulateur** — et l'application
+> le signale clairement. Validé sous Linux ; non vérifié sous Windows/macOS (les bibliothèques publient des paquets
+> pour ces systèmes, mais ils n'ont pas été essayés ici).
 >
 > Installer avec `-e` (mode éditable) : les migrations et les ressources sont lues depuis le dépôt.
 > Lancer toutes les commandes suivantes **depuis la racine du dépôt** (le dossier `data/` y est relatif).
@@ -87,7 +93,13 @@ Variables d'environnement `BRIKIA_*`, ou fichier `.env` à la racine (modèle : 
 | `BRIKIA_SESSION_TTL_HOURS` | `12` | Durée d'une session |
 | `BRIKIA_DATA_DIR` | `data` | Base, plans importés, sauvegardes, logs |
 | `BRIKIA_DATABASE_URL` | *(SQLite dans `DATA_DIR`)* | URL SQLAlchemy (migrations validées sur SQLite uniquement) |
-| `BRIKIA_MAX_UPLOAD_MB` | `50` | Taille max d'un plan (`.step .stp .ifc .pdf`) |
+| `BRIKIA_MAX_UPLOAD_MB` | `50` | Taille max d'un plan (`.step .stp .ifc .dxf .pdf`) |
+| `BRIKIA_ANALYZER_MODE` | `auto` | `auto` (réel si installé, sinon simulé **signalé**), `real` (refus sinon), `simulated` |
+| `BRIKIA_ANALYSIS_TIMEOUT_S` | `180` | Durée maximale d'une analyse de plan (processus isolé) |
+| `BRIKIA_ANALYSIS_ISOLATED` | `true` | Analyse dans un processus séparé (à ne désactiver qu'en développement) |
+| `BRIKIA_DXF_WALL_HEIGHT_MM` | `2700` | Hauteur de mur par défaut pour un plan DXF (2D) |
+| `BRIKIA_DXF_WALL_LAYERS` | `wall\|mur\|cloison\|partition…` | Calques de murs d'un DXF (regex) ; idem `…_DOOR_LAYERS`, `…_WINDOW_LAYERS` |
+| `BRIKIA_STEP_UP_AXIS` | `auto` | Axe vertical d'un STEP : `auto`, `z` ou `y` |
 | `BRIKIA_LAYOUT_RULES_FILE` | *(aucun)* | JSON de surcharge des règles de calepinage **temporaires** |
 | `BRIKIA_SIM_BLOCKS_PER_SECOND` | `40` | Cadence de la ligne **simulée** |
 | `BRIKIA_SIM_FAULT_AT_PERCENT` | *(aucun)* | Défaut simulé à ce % d'avancement (1-99) |
@@ -98,7 +110,7 @@ démarrage) : [docs/deploiement.md](docs/deploiement.md).
 
 ## Utilisation
 
-Résumé : le **chef de projet** importe un plan, lance l'analyse puis le calepinage, consulte la
+Résumé : le **chef de projet** importe un plan (IFC, STEP, DXF), lance l'analyse puis le calepinage, consulte la
 BOM et valide ; l'**opérateur** voit les projets validés, lance la production et suit sa progression
 jusqu'à `termine`. Guide détaillé : [docs/utilisation.md](docs/utilisation.md).
 
@@ -109,7 +121,7 @@ a_analyser → a_optimiser → a_valider → valide → en_production → termin
 ## Tests
 
 ```bash
-pytest          # 263 tests, aucun accès Internet, base SQLite temporaire migrée par Alembic
+pytest          # 391 tests (291 sans l'option phase2), aucun accès Internet, base SQLite temporaire migrée par Alembic
 ```
 
 ## Sauvegarde / restauration
@@ -133,8 +145,9 @@ data/             données locales (ignorées par git) : brikia.db, uploads/, ba
 
 ## Limites connues
 
-Principales limites de la phase 1 (liste complète dans [docs/architecture.md](docs/architecture.md)) :
-un seul processus serveur ; analyse, calepinage et production simulés ou temporaires ; pas de reprise
+Principales limites (liste complète dans [docs/architecture.md](docs/architecture.md) et
+[docs/validation-phase2.md](docs/validation-phase2.md)) : un seul processus serveur ; lecture DXF et STEP
+**approximatives** (STEP validé sur des fichiers générés seulement) ; PDF non lu ; calepinage et production simulés ou temporaires ; pas de reprise
 après une erreur de la ligne ; pas d'écran d'administration des comptes (création en ligne de commande) ;
 exemples de pare-feu / HTTPS / service non exécutés en conditions réelles.
 
@@ -144,11 +157,16 @@ exemples de pare-feu / HTTPS / service non exécutés en conditions réelles.
 |---|---|
 | [docs/utilisation.md](docs/utilisation.md) | Guide par rôle, parcours pas à pas |
 | [docs/architecture.md](docs/architecture.md) | Architecture, modèle de données, machine d'états, endpoints et permissions |
+| [docs/analyse-des-plans.md](docs/analyse-des-plans.md) | Phase 2 : lecture IFC / STEP / DXF, règles, limites, messages |
+| [docs/validation-phase2.md](docs/validation-phase2.md) | Résultats de validation de la phase 2 |
 | [docs/simule-et-futur.md](docs/simule-et-futur.md) | Ce qui est simulé/temporaire, et ce qui appartient aux phases futures |
 | [docs/deploiement.md](docs/deploiement.md) | Réseau local, pare-feu, HTTPS, service |
 | [docs/sauvegarde.md](docs/sauvegarde.md) | Sauvegarde et restauration |
 
 ## Licences tierces
+
+Bibliothèques de lecture des plans (option `phase2`) : IfcOpenShell, ezdxf et Open CASCADE (via `cadquery-ocp`) — installées par
+`pip`, non redistribuées dans ce dépôt ; se référer à leurs licences respectives avant toute redistribution.
 
 Polices Oswald, Inter et IBM Plex Mono (SIL Open Font License 1.1), embarquées dans
 `backend/brikia/static/fonts/` avec leurs licences.
