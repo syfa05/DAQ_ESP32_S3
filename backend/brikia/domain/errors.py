@@ -52,3 +52,7 @@ class ValidationFailed(DomainError):
 
 class PayloadTooLarge(DomainError):
     code = "fichier_trop_volumineux"
+
+
+class AnalysisFailed(DomainError):
+    code = "analyse_echouee"

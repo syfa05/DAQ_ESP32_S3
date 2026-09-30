@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+from ..domain.geometry import mm2_to_m2
 
 
 class OpeningOut(BaseModel):
@@ -21,6 +23,22 @@ class WallOut(BaseModel):
     hauteur_mm: int
     is_corner: bool
     openings: list[OpeningOut] = []
+
+    @computed_field
+    @property
+    def surface_brute_m2(self) -> float:
+        return mm2_to_m2(self.longueur_mm * self.hauteur_mm)
+
+    @computed_field
+    @property
+    def surface_ouvertures_m2(self) -> float:
+        return mm2_to_m2(sum(o.largeur_mm * o.hauteur_mm for o in self.openings))
+
+    @computed_field
+    @property
+    def surface_nette_m2(self) -> float:
+        brut = self.longueur_mm * self.hauteur_mm
+        return mm2_to_m2(brut - sum(o.largeur_mm * o.hauteur_mm for o in self.openings))
 
 
 class ProjectOut(BaseModel):

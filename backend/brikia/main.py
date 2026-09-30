@@ -8,6 +8,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pathlib import Path
 
 from . import __version__
+from .adapters.analyzers.simulated import SimulatedPlanAnalyzer
 from .api import auth as auth_api
 from .api import projects as projects_api
 from .api.errors import install_error_handlers
@@ -31,6 +32,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="BrikIA", version=__version__, docs_url=None, redoc_url=None)
     app.state.settings = settings
     app.state.throttle = LoginThrottle()
+    # Point unique de choix des adaptateurs (analyseur réel en phase 2).
+    app.state.plan_analyzer = SimulatedPlanAnalyzer()
 
     # Même origine pour l'UI et l'API : volontairement aucun CORS.
     if settings.allowed_hosts != ["*"]:

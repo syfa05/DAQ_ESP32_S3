@@ -22,6 +22,7 @@ _STATUS: list[tuple[type[e.DomainError], int]] = [
     (e.NotFound, 404),
     (e.Conflict, 409),  # couvre InvalidTransition
     (e.PayloadTooLarge, 413),
+    (e.AnalysisFailed, 422),
     (e.ValidationFailed, 422),
 ]
 

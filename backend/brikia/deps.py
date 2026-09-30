@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
+from .adapters.analyzers.base import PlanAnalyzer
 from .config import Settings
 from .db import get_session_factory
 from .domain.enums import Role
@@ -21,6 +22,10 @@ UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 def get_settings_dep(request: Request) -> Settings:
     return request.app.state.settings
+
+
+def get_plan_analyzer(request: Request) -> PlanAnalyzer:
+    return request.app.state.plan_analyzer
 
 
 def get_db() -> Iterator[Session]:

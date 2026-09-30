@@ -4,10 +4,14 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..config import Settings
-from ..deps import current_user, get_db, get_settings_dep, require_chef_projet
+from ..adapters.analyzers.base import PlanAnalyzer
+from ..deps import (
+    current_user, get_db, get_plan_analyzer, get_settings_dep, require_chef_projet,
+)
 from ..domain.errors import PayloadTooLarge
 from ..models import User
 from ..schemas.projects import ProjectDetail, ProjectOut, ProjectUpdate
+from ..services import analysis as analysis_svc
 from ..services import projects as svc
 
 router = APIRouter(prefix="/api/projects", tags=["projets"])
@@ -44,3 +48,13 @@ def update_project(project_id: int, body: ProjectUpdate,
                    user: User = Depends(require_chef_projet), db: Session = Depends(get_db)):
     project = svc.get_project(db, user, project_id)
     return svc.update_project(db, project, **body.model_dump(exclude_unset=True))
+
+
+@router.post("/{project_id}/analyse", response_model=ProjectDetail)
+def analyse_project(
+    project_id: int, user: User = Depends(require_chef_projet),
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings_dep),
+    analyzer: PlanAnalyzer = Depends(get_plan_analyzer),
+):
+    project = svc.get_project(db, user, project_id)
+    return analysis_svc.analyse_project(db, settings, analyzer, project)
