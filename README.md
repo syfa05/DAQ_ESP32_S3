@@ -36,5 +36,17 @@ python -m brikia.cli backup                       # -> data/backups/brikia-<date
 python -m brikia.cli restore <archive.zip> --yes  # application arrêtée ; copie de sécurité automatique
 ```
 
+## Comptes et démarrage
+
+```bash
+python -m brikia.cli create-user --login chef --nom "Nom Prénom" --role chef_projet   # mot de passe saisi au clavier
+python -m brikia.cli serve      # applique les migrations puis écoute sur BRIKIA_HOST:BRIKIA_PORT
+```
+
+Rôles : `chef_projet`, `operateur`. Authentification par session serveur (cookie `HttpOnly`,
+`SameSite=Strict`, `Secure` si `BRIKIA_COOKIE_SECURE=true`) + jeton CSRF (`X-CSRF-Token`) sur toute
+requête modifiante. Les permissions sont contrôlées côté backend par `require_role(...)`.
+Limitation des essais de connexion : 5 échecs / 60 s par identifiant.
+
 Les sections utilisation, architecture, éléments simulés, phases futures et
 déploiement/pare-feu seront complétées au fil des incréments.
