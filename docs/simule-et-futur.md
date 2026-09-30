@@ -18,7 +18,7 @@ validation, ActionLog, sauvegarde/restauration, interface complète, tests.
 | **Schéma des murs** | Illustration schématique, pas un rendu physique ni une simulation structurelle. | `static/js/lib/wallgrid.js` |
 | **Données de démonstration** | Comptes et 6 projets de démo, à ne jamais charger en production. | `seed.py` |
 
-Comportements simulés à connaître : le projet démo « en production » se termine seul ; un défaut
+Comportements simulés à connaître : le projet démo « en production » se termine seul (environ 2 minutes après le `seed` à la cadence par défaut — voir le README pour le garder plus longtemps) ; un défaut
 peut être provoqué avec `BRIKIA_SIM_FAULT_AT_PERCENT` ; les cadences se règlent avec
 `BRIKIA_SIM_BLOCKS_PER_SECOND`.
 

@@ -27,16 +27,20 @@ Depuis la racine du dépôt :
 # Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -c constraints.txt -e ".[dev]"
 ```
 
 ```powershell
 # Windows (PowerShell)
 py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -c constraints.txt -e ".[dev]"
 ```
 
+> `constraints.txt` fixe les versions des dépendances **validées** en phase 1 (sans lui, `pip` installerait
+> les dernières versions, non testées). Validé avec Python 3.11 sous Linux ; les commandes Windows
+> ci-dessus n'ont pas été exécutées dans l'environnement de développement.
+>
 > Installer avec `-e` (mode éditable) : les migrations et les ressources sont lues depuis le dépôt.
 > Lancer toutes les commandes suivantes **depuis la racine du dépôt** (le dossier `data/` y est relatif).
 
@@ -60,8 +64,12 @@ python -m brikia.cli create-user --login jdupont --nom "Jean Dupont" --role chef
 # rôles : chef_projet | operateur
 ```
 
-Le projet de démonstration « en production » avance en temps réel et se termine tout seul
-(environ 2 minutes à la cadence par défaut ; ralentir avec `BRIKIA_SIM_BLOCKS_PER_SECOND=2`).
+**Projet « en production » de la démo** : la ligne simulée avance en temps réel, donc ce projet se
+termine tout seul — environ **2 minutes** après le `seed` à la cadence par défaut (40 blocs/s),
+et l'état « terminé » est enregistré à la première consultation. Pour le garder en production plus
+longtemps, démarrer avec une cadence lente : `BRIKIA_SIM_BLOCKS_PER_SECOND=1 python -m brikia.cli serve`
+(cette valeur est celle du serveur ; elle se règle aussi dans `.env`). Pour voir un cycle complet
+en direct, lancer la production du projet « validé » avec la cadence par défaut.
 Pour repartir de zéro : arrêter l'application, supprimer `data/brikia.db*`, relancer `migrate` puis `seed`.
 
 ## Configuration
@@ -122,6 +130,13 @@ tests/            tests pytest
 docs/             documentation
 data/             données locales (ignorées par git) : brikia.db, uploads/, backups/, logs/
 ```
+
+## Limites connues
+
+Principales limites de la phase 1 (liste complète dans [docs/architecture.md](docs/architecture.md)) :
+un seul processus serveur ; analyse, calepinage et production simulés ou temporaires ; pas de reprise
+après une erreur de la ligne ; pas d'écran d'administration des comptes (création en ligne de commande) ;
+exemples de pare-feu / HTTPS / service non exécutés en conditions réelles.
 
 ## Documentation
 
