@@ -4,7 +4,7 @@ Deux rôles : **chef de projet** (importe, analyse, valide, administre les compt
 
 ## Depuis l'application (méthode normale)
 Connecté en **chef de projet** → menu **Utilisateurs** :
-* **Ajouter** : nom complet, identifiant (3–64 caractères : minuscules, chiffres, `.` `_` `-`), rôle, mot de passe provisoire (≥ 8 caractères).
+* **Ajouter** : nom complet, identifiant (3–64 caractères : lettres, chiffres, `.` `_` `-` `@` `+` ; une adresse e-mail convient ; les majuscules sont converties en minuscules), rôle, mot de passe provisoire (≥ 8 caractères).
 * **Désactiver / Réactiver** un compte (l'historique est conservé ; la personne est déconnectée immédiatement).
   Impossible de désactiver son propre compte ni le **dernier chef de projet actif**.
 * **Mot de passe** : définir un nouveau mot de passe pour quelqu'un qui l'a oublié (ses sessions sont fermées).

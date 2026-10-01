@@ -55,7 +55,7 @@ class LoginThrottle:
         self._failures.pop(key, None)
 
 
-LOGIN_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
+LOGIN_RE = re.compile(r"^[a-z0-9][a-z0-9._@+-]{2,63}$")
 
 
 def validate_password(password: str) -> None:
@@ -75,7 +75,7 @@ def create_user(db: Session, *, nom: str, login: str, password: str, role: Role,
         raise ValidationFailed("Le nom est obligatoire (120 caractères maximum).")
     if not LOGIN_RE.match(login):
         raise ValidationFailed(
-            "Identifiant invalide : 3 à 64 caractères (lettres minuscules, chiffres, « . », « _ » ou « - »)."
+            "Identifiant invalide : 3 à 64 caractères (lettres, chiffres, « . », « _ », « - », « @ » ou « + » ; une adresse e-mail convient)."
         )
     if db.scalar(select(User.id).where(User.login == login)) is not None:
         raise Conflict(f"L'identifiant « {login} » existe déjà.")

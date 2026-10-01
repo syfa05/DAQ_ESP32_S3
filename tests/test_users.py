@@ -168,3 +168,11 @@ def test_create_user_service_validation(db):
     with session_scope() as s:
         with pytest.raises(ValidationFailed):
             create_user(s, nom="x", login="BAD LOGIN", password=PASSWORD, role=Role.OPERATEUR)
+
+
+def test_email_accepted_as_login_and_lowercased(chef, app):
+    c, h = chef
+    r = c.post("/api/users", json={**NEW, "login": "Prenom.Nom+x@Exemple.FR"}, headers=h)
+    assert r.status_code == 201 and r.json()["login"] == "prenom.nom+x@exemple.fr"
+    login(app, "PRENOM.nom+x@exemple.fr", NEW["password"])
+    assert c.post("/api/users", json={**NEW, "login": "a@b c"}, headers=h).status_code == 422
