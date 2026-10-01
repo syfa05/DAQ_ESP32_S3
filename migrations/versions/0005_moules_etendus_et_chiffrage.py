@@ -59,17 +59,35 @@ def _check(values: tuple[str, ...]) -> str:
     return "categorie IN (" + ", ".join(f"'{v}'" for v in values) + ")"
 
 
+def _columns(table: str) -> set[str]:
+    return {c["name"] for c in sa.inspect(op.get_bind()).get_columns(table)}
+
+
 def upgrade() -> None:
+    # Idempotente : SQLite n'a pas de DDL transactionnel, une exécution interrompue peut avoir
+    # déjà appliqué une partie des changements.
+    have = _columns("brick_shapes")
     with op.batch_alter_table("brick_shapes", naming_convention=NAMING) as batch_op:
-        batch_op.add_column(sa.Column("poids_g", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("cadence_par_heure", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("cout_unitaire_eur", sa.String(length=40), nullable=True))
+        if "poids_g" not in have:
+            batch_op.add_column(sa.Column("poids_g", sa.Integer(), nullable=True))
+        if "cadence_par_heure" not in have:
+            batch_op.add_column(sa.Column("cadence_par_heure", sa.Integer(), nullable=True))
+        if "cout_unitaire_eur" not in have:
+            batch_op.add_column(sa.Column("cout_unitaire_eur", sa.String(length=40), nullable=True))
         batch_op.drop_constraint("categorie", type_="check")
         batch_op.create_check_constraint("categorie", _check(NEW_CATEGORIES))
 
-    with op.batch_alter_table("projects") as batch_op:
-        batch_op.add_column(sa.Column("devis", sa.JSON(), nullable=True))
+    if "devis" not in _columns("projects"):
+        with op.batch_alter_table("projects") as batch_op:
+            batch_op.add_column(sa.Column("devis", sa.JSON(), nullable=True))
 
+    if "pricing_settings" not in sa.inspect(op.get_bind()).get_table_names():
+        _create_pricing_table()
+
+    _seed_pricing_and_library()
+
+
+def _create_pricing_table() -> None:
     op.create_table(
         "pricing_settings",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -84,10 +102,14 @@ def upgrade() -> None:
                                 name=op.f("fk_pricing_settings_updated_by_id_users")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_pricing_settings")),
     )
+
+
+def _seed_pricing_and_library() -> None:
     bind = op.get_bind()
-    bind.execute(sa.text(
-        "INSERT INTO pricing_settings (id, taux_fcfa_par_eur, marge_pct, tva_pct, frais_fixes_eur, "
-        "updated_at) VALUES (1, '655.957', '20', '18', '0', :now)"), {"now": datetime.now(UTC)})
+    if bind.execute(sa.text("SELECT count(*) FROM pricing_settings")).scalar() == 0:
+        bind.execute(sa.text(
+            "INSERT INTO pricing_settings (id, taux_fcfa_par_eur, marge_pct, tva_pct, frais_fixes_eur, "
+            "updated_at) VALUES (1, '655.957', '20', '18', '0', :now)"), {"now": datetime.now(UTC)})
 
     # Bibliothèque : complète les moules existants (sans écraser une valeur déjà saisie)
     # et ajoute ceux qui n'existent pas encore.
