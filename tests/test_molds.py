@@ -3,19 +3,29 @@ import pytest
 from brikia.db import session_scope
 from brikia.models import BrickShape, LayoutRun, Project, ProductionOrder, ProductionOrderLine, Wall, WallAssignment
 
-NEW = {"code": "btc_demi", "nom": "BTC demi", "produit": "BTC autobloquante",
+NEW = {"code": "btc_mini", "nom": "BTC demi", "produit": "BTC autobloquante",
        "role": "Demi-bloc", "categorie": "standard", "longueur_mm": 120}
 
 
 def test_initial_library_is_seeded_by_migration(oper):
     o, _ = oper
     shapes = o.get("/api/moulds").json()
-    assert [s["code"] for s in shapes] == [
-        "BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_LINTEAU", "PARP_STD", "PARP_ANGLE"]
+    codes = [s["code"] for s in shapes]
+    assert codes[:6] == ["BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_LINTEAU",
+                         "PARP_STD", "PARP_ANGLE"]
+    assert len(codes) == 23
     assert {s["produit"] for s in shapes} == {"BTC autobloquante", "Parpaing autobloquant"}
     assert all(s["disponible"] for s in shapes)
-    assert next(s for s in shapes if s["code"] == "BTC_ANGLE")["categorie"] == "angle"
-    assert all(s["longueur_mm"] is None for s in shapes)  # dimensions non confirmées
+    by = {s["code"]: s for s in shapes}
+    assert by["BTC_ANGLE"]["categorie"] == "angle"
+    # Tous les types demandés sont présents, avec dimensions et poids.
+    assert {s["categorie"] for s in shapes} >= {
+        "standard", "creux", "demi", "trois_quarts", "angle", "angle_135", "te",
+        "chainage", "chainage_h", "linteau", "appui", "pignon", "acrotere"}
+    assert all(s["longueur_mm"] and s["largeur_mm"] and s["hauteur_mm"] and s["poids_g"]
+               for s in shapes)
+    assert (by["BTC_STD"]["longueur_mm"], by["BTC_STD"]["largeur_mm"],
+            by["BTC_STD"]["hauteur_mm"]) == (300, 150, 100)
 
 
 def test_both_roles_can_read(chef, oper):
@@ -35,13 +45,13 @@ def test_chef_full_crud(chef):
     r = c.post("/api/moulds", headers=csrf, json=NEW)
     assert r.status_code == 201
     s = r.json()
-    assert s["code"] == "BTC_DEMI" and s["disponible"] is True  # code normalisé
+    assert s["code"] == "BTC_MINI" and s["disponible"] is True  # code normalisé
     sid = s["id"]
 
     r = c.put(f"/api/moulds/{sid}", headers=csrf, json={"nom": "BTC demi-bloc", "largeur_mm": 115})
     assert r.status_code == 200
     assert r.json()["nom"] == "BTC demi-bloc" and r.json()["largeur_mm"] == 115
-    assert r.json()["longueur_mm"] == 120 and r.json()["code"] == "BTC_DEMI"
+    assert r.json()["longueur_mm"] == 120 and r.json()["code"] == "BTC_MINI"
 
     r = c.patch(f"/api/moulds/{sid}/disponibilite", headers=csrf, json={"disponible": False})
     assert r.json()["disponible"] is False
@@ -119,7 +129,7 @@ def test_operator_cannot_manage_molds(oper):
     with session_scope() as s:
         s1 = s.get(BrickShape, 1)
         assert s1.nom == "BTC standard" and s1.disponible
-        assert s.query(BrickShape).count() == 6
+        assert s.query(BrickShape).count() == 23
 
 
 def test_csrf_required_on_mold_writes(chef):
@@ -135,4 +145,4 @@ def test_molds_persist_across_restart(settings, chef):
     c.patch("/api/moulds/1/disponibilite", headers=csrf, json={"disponible": False})
     init_db(settings)
     shapes = c.get("/api/moulds").json()
-    assert len(shapes) == 7 and shapes[0]["disponible"] is False
+    assert len(shapes) == 24 and shapes[0]["disponible"] is False

@@ -43,11 +43,14 @@ def test_layout_computes_assignments_bom_and_moves_to_a_valider(chef):
     assert len(lay["murs"]) == 6 and lay["avertissements"] == []
     assert lay["moteur"].startswith("default-rule-based")
     assert lay["parametres"]["temporaire"] is True
-    # Façade nord (10000×2700, d'angle, 2 fenêtres 1200×1200), calcul à la main :
-    # net 24 120 000 -> 1117 -> 1173 ; angle 30 ; linteaux 2×7 ; chaînage 113 ; std 1016.
+    # Façade nord (10000×2700, d'angle, 2 fenêtres 1200×1200), calcul à la main avec les
+    # dimensions des moules BTC (300×150×100, linteau 450, appui 450) :
+    # net 24 120 000 / 30 000 -> 804 -> ×1,05 = 845 ; angle 27 assises ; linteaux 2×4 = 8 ;
+    # appuis 2×3 = 6 ; corps 804 ; chaînage 81 ; demi 49 ; standard 674.
     assert _qty(lay, "Façade nord") == {
-        "BTC_STD": 1016, "BTC_ANGLE": 30, "BTC_CHAINAGE": 113, "BTC_LINTEAU": 14}
-    assert sum(_qty(lay, "Façade nord").values()) == 1173
+        "BTC_STD": 674, "BTC_ANGLE": 27, "BTC_CHAINAGE": 81, "BTC_LINTEAU": 8,
+        "BTC_DEMI": 49, "BTC_APPUI": 6}
+    assert sum(_qty(lay, "Façade nord").values()) == 845
 
 
 def test_bom_is_grouped_by_shape_and_consistent(chef):
@@ -56,7 +59,7 @@ def test_bom_is_grouped_by_shape_and_consistent(chef):
     bom = c.get(f"/api/projects/{pid}/bom").json()
     assert bom == lay["bom"]
     assert [ln["code"] for ln in bom["lignes"]] == [
-        "BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_LINTEAU"]
+        "BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_LINTEAU", "BTC_DEMI", "BTC_APPUI"]
     for ln in bom["lignes"]:
         assert ln["quantite_totale"] == sum(m["quantite"] for m in ln["par_mur"])
     assert bom["total_blocs"] == sum(m["total"] for m in lay["murs"]) \
@@ -70,7 +73,7 @@ def test_no_zero_quantity_rows_and_wall_without_opening(chef):
     assert all(q["quantite"] > 0 for m in lay["murs"] for q in m["quantites"])
     # Refend sans angle ni fenêtre : pas de blocs d'angle, mais un linteau (porte).
     assert "BTC_ANGLE" not in _qty(lay, "Refend 1") and "BTC_LINTEAU" in _qty(lay, "Refend 1")
-    assert set(_qty(lay, "Pignon ouest")) == {"BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE"}
+    assert set(_qty(lay, "Pignon ouest")) == {"BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_DEMI"}
 
 
 def test_layout_persists_across_restart(settings, chef):

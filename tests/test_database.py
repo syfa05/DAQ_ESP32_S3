@@ -11,7 +11,7 @@ from brikia.models import (
 EXPECTED_TABLES = {
     "users", "user_sessions", "projects", "walls", "openings", "brick_shapes",
     "layout_runs", "wall_assignments", "production_orders",
-    "production_order_lines", "action_logs", "alembic_version",
+    "production_order_lines", "action_logs", "pricing_settings", "alembic_version",
 }
 
 

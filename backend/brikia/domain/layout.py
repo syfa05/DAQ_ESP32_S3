@@ -35,6 +35,11 @@ class BrickShapeInput:
     produit: str
     categorie: ShapeCategory
     disponible: bool
+    # Propriétés issues de la bibliothèque (None = valeur par défaut des règles).
+    longueur_mm: int | None = None
+    largeur_mm: int | None = None
+    hauteur_mm: int | None = None
+    cadence_par_heure: int | None = None
 
 
 @dataclass(frozen=True)

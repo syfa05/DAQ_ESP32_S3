@@ -10,7 +10,7 @@ from ..domain import states
 from ..domain.enums import ProjectStatus
 from ..domain.errors import Conflict, NotFound
 from ..models import Project, User
-from . import audit, layout, projects
+from . import audit, layout, pricing, projects
 
 log = logging.getLogger("brikia.validation")
 
@@ -28,6 +28,7 @@ def validate_project(db: Session, user: User, project: Project) -> Project:
     bom = layout.build_bom_out(run)
     try:
         projects.transition(db, project, ProjectStatus.VALIDE)
+        pricing.freeze_quote(db, project)
         audit.record(db, user, "project.validate", "project", project.id, {
             "layout_run_id": run.id, "moteur": run.engine,
             "total_blocs": bom.total_blocs, "avertissements": len(bom.avertissements),

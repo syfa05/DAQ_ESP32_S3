@@ -33,6 +33,24 @@ class ShapeCategory(StrEnum):
     ANGLE = "angle"
     CHAINAGE = "chainage"
     LINTEAU = "linteau"
+    # Familles de la bibliothèque étendue. DEMI et APPUI sont prélevés par le calcul
+    # automatique quand un moule disponible existe ; les autres types (bloc creux, ¾, angle 135°,
+    # T, chaînage horizontal, pignon, acrotère, spécial) sont en bibliothèque pour le chiffrage
+    # manuel, les plans et la production, sans quantité automatique.
+    DEMI = "demi"
+    APPUI = "appui"
+    CREUX = "creux"
+    TROIS_QUARTS = "trois_quarts"
+    ANGLE_135 = "angle_135"
+    TE = "te"
+    CHAINAGE_H = "chainage_h"
+    PIGNON = "pignon"
+    ACROTERE = "acrotere"
+    SPECIAL = "special"
+
+
+# Catégories prises en compte par le calcul automatique du calepinage.
+AUTO_CATEGORIES = ("standard", "angle", "chainage", "linteau", "demi", "appui")
 
 
 def values(enum_cls: type[StrEnum]) -> list[str]:

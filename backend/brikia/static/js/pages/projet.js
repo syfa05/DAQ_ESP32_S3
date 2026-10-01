@@ -24,7 +24,8 @@ async function load() {
     ? await get(`/api/projects/${id}/calepinage`).catch(notFound) : null;
   const order = ['en_production', 'termine'].includes(st)
     ? await get(`/api/projects/${id}/production`).catch(notFound) : null;
-  render(project, layout, order);
+  const quote = isChef && layout ? await get(`/api/projects/${id}/devis`).catch(notFound) : null;
+  render(project, layout, order, quote);
 }
 
 // Exécute une action métier puis recharge : l'état affiché est toujours celui
@@ -95,6 +96,8 @@ function actions(p, layout) {
   if (st === 'en_production' || st === 'termine') {
     bar.append(h('a', { class: 'btn btn-secondary', href: '/production' }, 'Suivre la production'));
   }
+  bar.append(h('a', { class: 'btn btn-secondary', href: `/api/projects/${id}/rapport.pdf`, target: '_blank', rel: 'noopener' },
+    'Rapport PDF'));
   return h('section', { class: 'card', 'aria-label': 'Actions' }, bar, hint ? h('p', { class: 'note' }, hint) : null);
 }
 
@@ -154,18 +157,43 @@ function bomTable(layout) {
       h('td', { class: 'num mono' }, fmt.int(bom.total_blocs)), h('td', {}, '')))));
 }
 
+const eur = (v) => `${Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const fcfa = (v) => `${Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA`;
+
+function quoteSection(q) {
+  const p = q.parametres;
+  const rows = q.lignes.map((l) => h('tr', {}, h('td', { class: 'mono' }, l.code),
+    h('td', { class: 'num mono' }, fmt.int(l.quantite)),
+    h('td', { class: 'num mono' }, l.chiffre ? eur(l.prix_unitaire_eur) : 'n/c'),
+    h('td', { class: 'num mono' }, l.chiffre ? eur(l.total_eur) : 'n/c'),
+    h('td', { class: 'num mono' }, l.chiffre ? fcfa(l.prix_unitaire_fcfa) : 'n/c'),
+    h('td', { class: 'num mono' }, l.chiffre ? fcfa(l.total_fcfa) : 'n/c')));
+  const tot = (label, key, cls = '') => h('tr', { class: cls }, h('td', { colspan: 3 }, label),
+    h('td', { class: 'num mono' }, eur(q.eur[key])), h('td', {}, ''), h('td', { class: 'num mono' }, fcfa(q.fcfa[key])));
+  return h('section', { 'aria-labelledby': 'h-quote' },
+    h('h2', { id: 'h-quote' }, 'Chiffrage estimatif ',
+      h('span', { class: `badge ${q.fige ? 'frozen' : 'live'}` }, q.fige ? 'Figé à la validation' : 'Indicatif (tarif du jour)')),
+    h('p', { class: 'note' }, `Marge ${p.marge_pct} % · TVA ${p.tva_pct} % · 1 EUR = ${p.taux_fcfa_par_eur} FCFA. Valeurs estimatives : modifiables dans la page Tarifs.`),
+    q.avertissements.length ? h('div', { class: 'warn', role: 'alert' }, h('ul', {}, q.avertissements.map((a) => h('li', {}, a)))) : null,
+    h('div', { class: 'card table-card' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['Moule', 'Qté', 'PU EUR', 'Total EUR', 'PU FCFA', 'Total FCFA'].map((t) => h('th', {}, t)))),
+      h('tbody', {}, rows),
+      h('tfoot', {}, tot('Matériel HT', 'materiel_ht'), tot('Frais fixes', 'frais_fixes'), tot('Total HT', 'total_ht'),
+        tot('TVA', 'tva'), tot('Total TTC', 'total_ttc', 'quote-total')))));
+}
+
 function layoutSection(project, layout) {
   const bom = layout.bom;
   const produitByCode = Object.fromEntries(bom.lignes.map((l) => [l.code, l.produit]));
   const wallsById = Object.fromEntries(project.walls.map((w) => [w.id, w]));
   return h('section', { 'aria-labelledby': 'h-layout' },
     h('h2', { id: 'h-layout' }, 'Calepinage IA — proposition'),
-    h('p', { class: 'temp' }, 'Règles de calcul temporaires (brique jointée du prototype) : le système autobloquant mâle-femelle définitif sera validé avec le fournisseur des moules. Durée = estimation indicative sur cadences de démonstration.'),
+    h('p', { class: 'temp' }, 'Calcul à partir des dimensions des moules de la bibliothèque et de règles temporaires (marges, parts de demi-blocs et de chaînage) à valider avec le fournisseur. Durée = estimation indicative sur les cadences des moules.'),
     layout.avertissements.length ? h('div', { class: 'warn', role: 'alert' }, h('strong', {}, 'Avertissements'),
       h('ul', {}, layout.avertissements.map((a) => h('li', {}, a)))) : null,
     h('h3', {}, 'Nomenclature'),
     bomTable(layout),
-    h('p', { class: 'note' }, `Durée de production estimée : ${fmt.duration(bom.duree_estimee_min)} (indicatif, valeurs de démonstration).`),
+    h('p', { class: 'note' }, `Durée de production estimée : ${fmt.duration(bom.duree_estimee_min)} (indicatif, d'après les cadences des moules).`),
     h('h3', {}, 'Schéma des murs'),
     h('p', { class: 'note' }, 'Représentation schématique : elle aide à comprendre le calepinage mais n\'est pas un rendu physique exact ni une simulation structurelle. Les quantités font foi.'),
     wallGridsSection(project, layout, produitByCode, wallsById));
@@ -198,7 +226,7 @@ function wallGridsSection(project, layout, produitByCode, wallsById) {
     holder);
 }
 
-function render(project, layout, order) {
+function render(project, layout, order, quote) {
   const st = project.status;
   const planLine = project.plan_original_name
     ? `${project.plan_original_name} (${fmt.bytes(project.plan_size)}) · SHA-256 ${fmt.shortHash(project.plan_sha256)}…` : '—';
@@ -224,6 +252,7 @@ function render(project, layout, order) {
   }
   if (project.walls.length) nodes.push(wallsTable(project.walls));
   if (layout) nodes.push(layoutSection(project, layout));
+  if (quote) nodes.push(quoteSection(quote));
   replace(root, ...nodes);
   document.title = `${project.nom} — BrikIA`;
 

@@ -4,6 +4,7 @@ from .entities import (
     BrickShape,
     LayoutRun,
     Opening,
+    PricingSettings,
     ProductionOrder,
     ProductionOrderLine,
     Project,
@@ -14,6 +15,6 @@ from .entities import (
 )
 
 __all__ = [
-    "ActionLog", "Base", "BrickShape", "LayoutRun", "Opening", "ProductionOrder",
+    "ActionLog", "Base", "BrickShape", "LayoutRun", "Opening", "PricingSettings", "ProductionOrder",
     "ProductionOrderLine", "Project", "User", "UserSession", "Wall", "WallAssignment",
 ]

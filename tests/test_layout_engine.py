@@ -189,3 +189,62 @@ def test_build_bom_groups_by_shape_in_stable_order():
     assert [ln.code for ln in bom] == ["BTC_STD", "BTC_CHAINAGE"]
     assert bom[0].total == 17 and bom[0].per_wall == [(1, "M1", 10), (2, "M2", 7)]
     assert bom[1].total == 7
+
+
+# --- Dimensions des moules, demi-blocs et appuis (calculs faits à la main) ----------------------
+def lib(extra=()):
+    """Bibliothèque avec dimensions : BTC 300×150×100, linteau 450, appui 450, demi 150."""
+    rows = [
+        (1, "BTC_STD", BTC, C.STANDARD, 300, 150, 100), (2, "BTC_CHAINAGE", BTC, C.CHAINAGE, 300, 150, 100),
+        (3, "BTC_LINTEAU", BTC, C.LINTEAU, 450, 150, 100), (4, "BTC_ANGLE", BTC, C.ANGLE, 300, 150, 100),
+        *extra,
+    ]
+    return [S(i, code, code, prod, cat, True, L, l, h) for i, code, prod, cat, L, l, h in rows]
+
+
+def test_block_dimensions_come_from_the_standard_mold():
+    # 4000×2500 : face 300×100 = 30 000 -> ceil(333,33) = 334 ; ×1,05 -> 351 ; chaînage 36.
+    r = ENGINE.calculate([wall()], lib())
+    assert q(r) == {1: 315, 2: 36} and sum(q(r).values()) == 351
+    assert r.parameters["block_length_mm"] == 300 and r.parameters["block_height_mm"] == 100
+    assert r.parameters["dimensions_depuis_les_moules"] is True
+
+
+def test_corner_courses_use_mold_height():
+    # 2500 / 100 = 25 assises -> 25 blocs d'angle (et non 28 avec la brique par défaut de 90 mm).
+    r = ENGINE.calculate([wall(corner=True)], lib())
+    assert q(r)[4] == 25
+
+
+def test_demi_blocks_become_a_real_quantity_when_a_mold_exists():
+    demi = (5, "BTC_DEMI", BTC, C.DEMI, 150, 150, 100)
+    r = ENGINE.calculate([wall()], lib([demi]))
+    # corps 351 ; chaînage 36 ; demi ceil(351 × 6 %) = 22 ; standard 293.
+    assert q(r) == {1: 293, 2: 36, 5: 22} and sum(q(r).values()) == 351
+    assert "demi_blocs_estimes" not in r.indicators
+
+
+def test_sills_use_mold_length_and_are_taken_from_the_total():
+    extra = [(5, "BTC_DEMI", BTC, C.DEMI, 150, 150, 100), (6, "BTC_APPUI", BTC, C.APPUI, 450, 150, 80)]
+    w = wall(openings=[O("fenetre", 1200, 1200)])
+    # net 8 560 000 -> 286 -> 301 ; linteau ceil(1600/450)=4 ; appui ceil(1200/450)=3 ;
+    # corps 294 ; chaînage 30 ; demi 18 ; standard 246.
+    r = ENGINE.calculate([w], lib(extra))
+    assert q(r) == {1: 246, 2: 30, 3: 4, 5: 18, 6: 3} and sum(q(r).values()) == 301
+    # Une porte n'a pas d'appui.
+    r2 = ENGINE.calculate([wall(openings=[O("porte", 900, 2100)])], lib(extra))
+    assert 6 not in q(r2)
+
+
+def test_optional_molds_of_another_product_are_ignored():
+    parp_demi = (5, "PARP_DEMI", PARP, C.DEMI, 200, 200, 200)
+    r = ENGINE.calculate([wall()], lib([parp_demi]))
+    assert 5 not in q(r) and "demi_blocs_estimes" in r.indicators
+
+
+def test_mold_cadence_overrides_category_rate_in_duration():
+    base = lib()
+    fast = [S(s.id, s.code, s.nom, s.produit, s.categorie, True, s.longueur_mm, s.largeur_mm,
+              s.hauteur_mm, 100_000) for s in base]
+    slow = ENGINE.calculate([wall()], base).estimated_duration_min
+    assert ENGINE.calculate([wall()], fast).estimated_duration_min < slow

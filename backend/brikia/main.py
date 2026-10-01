@@ -11,6 +11,7 @@ from . import __version__
 from .adapters.analyzers.dispatch import build_plan_analyzer
 from .api import audit as audit_api
 from .api import users as users_api
+from .api import documents as documents_api
 from .api import auth as auth_api
 from .adapters.layout.rule_based import DefaultRuleBasedLayoutEngine
 from .adapters.layout.rules_config import LayoutRules
@@ -73,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(production_api.router)
     app.include_router(audit_api.router)
     app.include_router(users_api.router)
+    app.include_router(documents_api.router)
 
     app.include_router(web_routes.router)
 

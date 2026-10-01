@@ -36,7 +36,8 @@ def _wall_input(w: Wall) -> WallInput:
 
 def _shape_input(s: BrickShape) -> BrickShapeInput:
     return BrickShapeInput(s.id, s.code, s.nom, s.produit, ShapeCategory(s.categorie),
-                           s.disponible)
+                           s.disponible, s.longueur_mm, s.largeur_mm, s.hauteur_mm,
+                           s.cadence_par_heure)
 
 
 def _check_result(result: LayoutResult, wall_ids: set[int], shape_ids: set[int]) -> None:

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..deps import current_user, get_db, require_chef_projet
+from ..domain.enums import Role
 from ..models import User
 from ..schemas.molds import Availability, ShapeCreate, ShapeOut, ShapeUpdate
 from ..services import molds as svc
@@ -11,14 +12,22 @@ from ..services import molds as svc
 router = APIRouter(prefix="/api/moulds", tags=["moules"])
 
 
+def _visible(shape, user: User) -> ShapeOut:
+    """Les coûts de revient sont réservés au chef de projet."""
+    out = ShapeOut.model_validate(shape)
+    if user.role != Role.CHEF_PROJET.value:
+        out = out.model_copy(update={"cout_unitaire_eur": None})
+    return out
+
+
 @router.get("", response_model=list[ShapeOut])
-def list_shapes(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    return svc.list_shapes(db)
+def list_shapes(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return [_visible(s, user) for s in svc.list_shapes(db)]
 
 
 @router.get("/{shape_id}", response_model=ShapeOut)
-def get_shape(shape_id: int, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return svc.get_shape(db, shape_id)
+def get_shape(shape_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return _visible(svc.get_shape(db, shape_id), user)
 
 
 @router.post("", response_model=ShapeOut, status_code=201)
@@ -28,9 +37,9 @@ def create_shape(body: ShapeCreate, _: User = Depends(require_chef_projet),
 
 
 @router.put("/{shape_id}", response_model=ShapeOut)
-def update_shape(shape_id: int, body: ShapeUpdate, _: User = Depends(require_chef_projet),
+def update_shape(shape_id: int, body: ShapeUpdate, user: User = Depends(require_chef_projet),
                  db: Session = Depends(get_db)):
-    return svc.update_shape(db, svc.get_shape(db, shape_id), body)
+    return svc.update_shape(db, svc.get_shape(db, shape_id), body, user)
 
 
 @router.patch("/{shape_id}/disponibilite", response_model=ShapeOut)

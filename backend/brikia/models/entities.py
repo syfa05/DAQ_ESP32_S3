@@ -11,6 +11,7 @@ Choix notables :
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import (
@@ -27,7 +28,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..domain.enums import OrderStatus, ProjectStatus, Role, ShapeCategory, values
-from .base import Base, UTCDateTime, utcnow
+
+from .base import Base, DecimalText, UTCDateTime, utcnow
 
 
 def _in(column: str, enum_cls) -> str:  # noqa: ANN001
@@ -81,6 +83,8 @@ class Project(Base):
     # Provenance de la géométrie : simulated | ifc | step | dxf, et avertissements.
     analysis_source: Mapped[str | None] = mapped_column(String(20))
     analysis_notes: Mapped[list | None] = mapped_column(JSON)
+    # Devis figé à la validation (les changements de tarifs ne modifient plus un projet validé).
+    devis: Mapped[dict | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(
         String(20), default=ProjectStatus.A_ANALYSER.value, index=True
     )
@@ -160,6 +164,11 @@ class BrickShape(Base):
     longueur_mm: Mapped[int | None] = mapped_column(Integer)
     largeur_mm: Mapped[int | None] = mapped_column(Integer)
     hauteur_mm: Mapped[int | None] = mapped_column(Integer)
+    # Poids à l'unité (grammes), cadence de fabrication (blocs/heure) et coût de revient
+    # unitaire ESTIMÉ (EUR) : modifiables à tout moment (page Tarifs / Moules).
+    poids_g: Mapped[int | None] = mapped_column(Integer)
+    cadence_par_heure: Mapped[int | None] = mapped_column(Integer)
+    cout_unitaire_eur: Mapped[Decimal | None] = mapped_column(DecimalText)
     disponible: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -287,3 +296,18 @@ __all__ = [
     "ActionLog", "BrickShape", "LayoutRun", "Opening", "ProductionOrder",
     "ProductionOrderLine", "Project", "User", "UserSession", "Wall", "WallAssignment",
 ]
+
+
+class PricingSettings(Base):
+    """Paramètres de chiffrage : une seule ligne (id = 1). Valeurs ESTIMATIVES."""
+
+    __tablename__ = "pricing_settings"
+    __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    taux_fcfa_par_eur: Mapped[Decimal] = mapped_column(DecimalText)
+    marge_pct: Mapped[Decimal] = mapped_column(DecimalText)
+    tva_pct: Mapped[Decimal] = mapped_column(DecimalText)
+    frais_fixes_eur: Mapped[Decimal] = mapped_column(DecimalText)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

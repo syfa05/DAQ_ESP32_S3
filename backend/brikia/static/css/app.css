@@ -147,6 +147,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .8rem; }
 .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
 .cat-standard { fill: var(--brick); background: var(--brick); } .cat-angle { fill: var(--ocre); background: var(--ocre); }
 .cat-chainage { fill: var(--moss); background: var(--moss); } .cat-linteau { fill: var(--steel); background: var(--steel); }
+.cat-demi { fill: #c98b6b; background: #c98b6b; } .cat-appui { fill: #7c8f9f; background: #7c8f9f; }
 .cat-standard.parp, .cat-angle.parp { fill-opacity: .6; opacity: .6; }
 .cell-open { fill: #100F0D; }
 
@@ -205,3 +206,14 @@ details.wallgrid .legend { margin-top: .5rem; }
 .h-md { font-size: 1.1rem; margin: .4rem 0; }
 .user-name { color: inherit; text-decoration: none; }
 .user-name:hover { text-decoration: underline; }
+
+/* Moules, tarifs, devis, plans */
+.mold-plan { max-width: min(1100px, 92vw); }
+.mold-plan img { width: 100%; height: auto; background: #fff; border-radius: 6px; display: block; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cost-input { max-width: 110px; text-align: right; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .2rem 1.2rem; }
+.quote-total td { font-weight: 700; }
+.badge.frozen { background: var(--moss); color: #fff; } .badge.live { background: var(--ocre); color: #1d1a14; }
+.two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.section-gap { margin-top: 1.4rem; }

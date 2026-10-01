@@ -21,7 +21,7 @@ jobs:
         run: python installer/build_windows.py --profile complet
 
       - name: Contrôle des bibliothèques de lecture des plans (Python embarqué)
-        run: build\BrikIA\python\python.exe -c "import ifcopenshell, ezdxf, OCP, fastapi, uvicorn; print('ifcopenshell', ifcopenshell.version, '| ezdxf', ezdxf.__version__)"
+        run: build\BrikIA\python\python.exe -c "import ifcopenshell, ezdxf, OCP, fastapi, uvicorn, reportlab; print('ifcopenshell', ifcopenshell.version, '| ezdxf', ezdxf.__version__)"
 
       - name: Test de fumée du dossier construit (DXF réel)
         run: >

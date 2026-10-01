@@ -114,3 +114,8 @@ def setup_page(request: Request, auth=Depends(optional_auth), db: Session = Depe
         return RedirectResponse("/", status_code=303)
     return templates.TemplateResponse(request, "installation.html",
                                       {"user": None, "role_labels": ROLE_LABELS})
+
+
+@router.get("/tarifs")
+def pricing_page(request: Request, auth=Depends(optional_auth)):
+    return _render(request, auth, "tarifs.html", roles=CHEF, nav="tarifs")

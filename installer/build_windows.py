@@ -28,7 +28,7 @@ PY_VERSION = "3.12.10"
 PY_TAG = "312"
 PY_URL = f"https://www.python.org/ftp/python/{PY_VERSION}/python-{PY_VERSION}-embed-amd64.zip"
 BASE_PACKAGES = ["fastapi", "uvicorn", "sqlalchemy", "alembic", "pydantic-settings", "jinja2",
-                 "python-multipart", "argon2-cffi", "ifcopenshell", "ezdxf"]
+                 "python-multipart", "argon2-cffi", "reportlab", "ifcopenshell", "ezdxf"]
 STEP_PACKAGES = ["cadquery-ocp"]
 
 

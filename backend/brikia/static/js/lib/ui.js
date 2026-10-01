@@ -14,7 +14,14 @@ export const SOURCE_LABELS = {
 };
 export const SOURCE_SHORT = { ifc: 'IFC', step: 'STEP', dxf: 'DXF', simulated: 'simulé' };
 export const sourceBadge = (src) => h('span', { class: `badge src-${src}` }, SOURCE_LABELS[src] || src);
-export const CATEGORY_LABELS = { standard: 'Standard', angle: 'Angle', chainage: 'Chaînage', linteau: 'Linteau' };
+export const CATEGORY_LABELS = {
+  standard: 'Bloc plein / standard', creux: 'Bloc creux', demi: 'Demi-bloc', trois_quarts: 'Trois-quarts (¾)',
+  angle: 'Angle 90°', angle_135: 'Angle 135°', te: 'Bloc en T', chainage: 'Chaînage vertical',
+  chainage_h: 'Chaînage horizontal (U)', linteau: 'Linteau', appui: 'Appui de fenêtre',
+  pignon: 'Pignon (rampant)', acrotere: 'Acrotère', special: 'Spécial',
+};
+// Types pris en compte par le calcul automatique du calepinage (les autres : saisie manuelle).
+export const AUTO_CATEGORIES = new Set(['standard', 'angle', 'chainage', 'linteau', 'demi', 'appui']);
 
 export const statusBadge = (status) =>
   h('span', { class: `badge st-${status}` }, STATUS_LABELS[status] || status);

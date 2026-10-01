@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, MetaData
+from sqlalchemy import DateTime, MetaData, String
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.types import TypeDecorator
 
@@ -38,6 +39,19 @@ class UTCDateTime(TypeDecorator):
         if value is not None and value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value
+
+
+class DecimalText(TypeDecorator):
+    """Montants et taux EXACTS : stockés en texte (SQLite n'a pas de décimal natif)."""
+
+    impl = String(40)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):  # noqa: ANN001
+        return None if value is None else str(Decimal(str(value)))
+
+    def process_result_value(self, value, dialect):  # noqa: ANN001
+        return None if value is None else Decimal(value)
 
 
 class Base(DeclarativeBase):

@@ -101,6 +101,17 @@ def main() -> int:
             check("analyse du plan", status == 200, str(status))
             check("analyse RÉELLE (pas simulée)", proj.get("analysis_source") == expected,
                   str(proj.get("analysis_source")))
+        if plan:
+            status, _ = call("POST", f"/api/projects/{proj['id']}/calepinage")
+            check("calepinage", status == 200, str(status))
+            status, quote = call("GET", f"/api/projects/{proj['id']}/devis")
+            check("devis EUR/FCFA", status == 200 and quote["fcfa"]["total_ttc"] != "0", str(status))
+            req = urllib.request.Request(base + f"/api/projects/{proj['id']}/rapport.pdf")
+            with opener.open(req, timeout=120) as r:
+                pdf = r.read()
+            check("rapport PDF", pdf.startswith(b"%PDF") and len(pdf) > 5000, f"{len(pdf)} octets")
+            with opener.open(base + "/api/moulds/1/plan.svg", timeout=30) as r:
+                check("plan SVG d'un moule", b"<svg" in r.read())
         print("\nTest de fumée : SUCCÈS")
         return 0
     except Exception as exc:  # noqa: BLE001

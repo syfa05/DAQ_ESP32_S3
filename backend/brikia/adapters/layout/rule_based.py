@@ -5,12 +5,18 @@ Ce n'est pas une IA : mêmes entrées => mêmes sorties. Par mur :
   surface_nette = longueur × hauteur − Σ ouvertures
   blocs         = ceil(ceil(surface_nette / face_bloc) × (1 + marge))
   angle         = nb_assises × piles d'angle          (mur d'angle seulement)
-  linteau       = Σ ceil((largeur_ouverture + 2 × appui) / longueur_bloc)
-  corps         = blocs − angle − linteau
-  chaînage      = ceil(corps × ratio_chaînage) ; standard = corps − chaînage
+  linteau       = Σ ceil((largeur_ouverture + 2 × appui) / longueur_moule_linteau)
+  appui         = Σ ceil(largeur / longueur_moule_appui)   (fenêtres/vitrines ; si moule appui)
+  corps         = blocs − angle − linteau − appui
+  chaînage      = ceil(corps × ratio_chaînage)
+  demi          = ceil(corps × ratio_demi)            (si moule demi ; sinon simple indicateur)
+  standard      = corps − chaînage − demi
 
-Angle, linteau et chaînage sont prélevés sur le total : la somme des blocs
-d'un mur reste égale au nombre de blocs calculé.
+La face du bloc, le nombre d'assises et les longueurs viennent des DIMENSIONS DES MOULES de la
+bibliothèque (moule standard disponible, linteau, appui) ; à défaut, des règles par défaut.
+Angle, linteau, appui, demi et chaînage sont prélevés sur le total : la somme des blocs d'un mur
+reste égale au nombre de blocs calculé. Les types sans quantité automatique (creux, ¾, angle 135°,
+T, chaînage horizontal, pignon, acrotère) sont en bibliothèque pour la saisie manuelle.
 """
 
 from __future__ import annotations
@@ -39,22 +45,48 @@ class DefaultRuleBasedLayoutEngine:
     def __init__(self, rules: LayoutRules | None = None) -> None:
         self.rules = rules or LayoutRules()
 
+    # -- dimensions utiles (issues des moules, sinon règles par défaut) -----
+    def _context(self, shapes: Sequence[BrickShapeInput]) -> dict:
+        r = self.rules
+        std = next(iter(self._candidates(shapes, Cat.STANDARD)), None)
+
+        def same_product(cat: Cat) -> BrickShapeInput | None:
+            if std is None:
+                return None
+            return next((s for s in self._candidates(shapes, cat) if s.produit == std.produit), None)
+
+        lintel = same_product(Cat.LINTEAU) or next(iter(self._candidates(shapes, Cat.LINTEAU)), None)
+        return {
+            "length": (std.longueur_mm if std and std.longueur_mm else r.block_length_mm),
+            "height": (std.hauteur_mm if std and std.hauteur_mm else r.block_height_mm),
+            "lintel_length": (lintel.longueur_mm if lintel and lintel.longueur_mm else
+                              (std.longueur_mm if std and std.longueur_mm else r.block_length_mm)),
+            "demi": same_product(Cat.DEMI),
+            "appui": same_product(Cat.APPUI),
+        }
+
     # -- quantités par catégorie pour un mur ------------------------------
-    def _wall_categories(self, wall: WallInput) -> dict[Cat, int]:
+    def _wall_categories(self, wall: WallInput, ctx: dict) -> dict[Cat, int]:
         r, g = self.rules, wall.geometry
-        face = r.block_length_mm * r.block_height_mm
+        face = ctx["length"] * ctx["height"]
         raw = ceil(g.net_area_mm2 / face)
         total = _ceil(Decimal(raw) * (1 + r.waste_margin))
 
-        courses = ceil(g.hauteur_mm / r.block_height_mm)
+        courses = ceil(g.hauteur_mm / ctx["height"])
         corner = courses * r.corner_stacks_per_corner_wall if g.is_corner else 0
-        lintel = sum(ceil((o.largeur_mm + 2 * r.lintel_bearing_mm) / r.block_length_mm)
+        lintel = sum(ceil((o.largeur_mm + 2 * r.lintel_bearing_mm) / ctx["lintel_length"])
                      for o in g.openings)
-        body = max(0, total - corner - lintel)
+        sill = 0
+        if ctx["appui"] is not None and ctx["appui"].longueur_mm:
+            sill = sum(ceil(o.largeur_mm / ctx["appui"].longueur_mm)
+                       for o in g.openings if o.type in ("fenetre", "vitrine"))
+        body = max(0, total - corner - lintel - sill)
         chainage = _ceil(Decimal(body) * r.chainage_ratio)
+        demi = _ceil(Decimal(body) * r.half_block_ratio) if ctx["demi"] is not None else 0
+        standard = max(0, body - chainage - demi)
         return {
             Cat.ANGLE: corner, Cat.LINTEAU: lintel, Cat.CHAINAGE: chainage,
-            Cat.STANDARD: body - chainage,
+            Cat.DEMI: demi, Cat.APPUI: sill, Cat.STANDARD: standard,
         }
 
     # -- choix du moule pour une catégorie --------------------------------
@@ -97,16 +129,20 @@ class DefaultRuleBasedLayoutEngine:
         results: list[WallLayout] = []
         totals_by_shape: dict[int, int] = {}
         body_total = 0
+        ctx = self._context(brick_shapes)
 
         for wall in walls:
-            per_cat = self._wall_categories(wall)
-            body_total += per_cat[Cat.STANDARD] + per_cat[Cat.CHAINAGE]
+            per_cat = self._wall_categories(wall, ctx)
+            body_total += per_cat[Cat.STANDARD] + per_cat[Cat.CHAINAGE] + per_cat[Cat.DEMI]
             quantities: dict[int, int] = {}
             for cat, qty in per_cat.items():
                 if qty <= 0:
                     continue
                 if cat not in resolved:  # avertissement émis une seule fois
-                    resolved[cat] = self._resolve(brick_shapes, cat, warnings)
+                    if cat in (Cat.DEMI, Cat.APPUI):  # moule choisi pour la cohérence du système
+                        resolved[cat] = ctx["demi" if cat == Cat.DEMI else "appui"]
+                    else:
+                        resolved[cat] = self._resolve(brick_shapes, cat, warnings)
                 shape = resolved[cat]
                 quantities[shape.id] = quantities.get(shape.id, 0) + qty
             for sid, q in quantities.items():
@@ -114,14 +150,23 @@ class DefaultRuleBasedLayoutEngine:
             results.append(WallLayout(wall.id, quantities))
 
         indicators = {}
-        if body_total:
+        if body_total and ctx["demi"] is None:
             indicators["demi_blocs_estimes"] = _ceil(Decimal(body_total) * self.rules.half_block_ratio)
 
         return LayoutResult(
             engine=self.name, walls=tuple(results), warnings=tuple(warnings),
             estimated_duration_min=self._duration_min(totals_by_shape, brick_shapes),
-            parameters=self.rules.to_dict(), indicators=indicators,
+            parameters=self._parameters(ctx), indicators=indicators,
         )
+
+    def _parameters(self, ctx: dict) -> dict:
+        """Règles utilisées + dimensions EFFECTIVES (issues des moules) pour l'audit et l'affichage."""
+        params = self.rules.to_dict()
+        params["block_length_mm"], params["block_height_mm"] = ctx["length"], ctx["height"]
+        params["lintel_length_mm"] = ctx["lintel_length"]
+        params["dimensions_depuis_les_moules"] = (
+            ctx["length"] != self.rules.block_length_mm or ctx["height"] != self.rules.block_height_mm)
+        return params
 
     def _duration_min(self, totals: dict[int, int],
                       brick_shapes: Sequence[BrickShapeInput]) -> int:
@@ -130,9 +175,11 @@ class DefaultRuleBasedLayoutEngine:
             return 0
         rates = self.rules.production_rate_per_hour
         category = {s.id: s.categorie.value for s in brick_shapes}
+        own_rate = {s.id: s.cadence_par_heure for s in brick_shapes if s.cadence_par_heure}
         minutes = Decimal(0)
         for sid, qty in totals.items():
-            rate = rates.get(category[sid], rates[Cat.STANDARD.value])
+            rate = (Decimal(own_rate[sid]) if sid in own_rate
+                    else rates.get(category[sid], rates[Cat.STANDARD.value]))
             minutes += Decimal(qty) / rate * 60
         minutes += self.rules.mold_changeover_min * len(totals)
         return _ceil(minutes)

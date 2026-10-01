@@ -9,8 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..domain.errors import Conflict, NotFound, ValidationFailed
-from ..models import BrickShape, ProductionOrderLine, WallAssignment
+from ..models import BrickShape, ProductionOrderLine, User, WallAssignment
 from ..schemas.molds import ShapeCreate, ShapeUpdate
+from . import audit
 
 log = logging.getLogger("brikia.molds")
 
@@ -42,15 +43,22 @@ def create_shape(db: Session, data: ShapeCreate) -> BrickShape:
     return shape
 
 
-def update_shape(db: Session, shape: BrickShape, data: ShapeUpdate) -> BrickShape:
+def update_shape(db: Session, shape: BrickShape, data: ShapeUpdate,
+                 actor: User | None = None) -> BrickShape:
     changes = data.model_dump(exclude_unset=True)
     for field in ("nom", "produit", "disponible", "categorie"):
         if field in changes and changes[field] is None:
             raise ValidationFailed(f"Le champ « {field} » ne peut pas être vide.")
     if "categorie" in changes:
         changes["categorie"] = changes["categorie"].value
+    before = {k: getattr(shape, k) for k in changes}
     for k, v in changes.items():
         setattr(shape, k, v)
+    diff = {k: {"avant": str(before[k]), "apres": str(v)} for k, v in changes.items()
+            if before[k] != v}
+    if diff:  # les coûts et dimensions influencent les devis : on garde la trace
+        audit.record(db, actor, "mold.update", "brick_shape", shape.id,
+                     {"code": shape.code, "modifications": diff})
     db.commit()
     return shape
 

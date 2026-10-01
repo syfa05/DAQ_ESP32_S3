@@ -18,6 +18,7 @@
     <nav aria-label="Navigation principale">
       <a href="/" {% if nav == 'projets' %}aria-current="page"{% endif %}>Projets</a>
       <a href="/moules" {% if nav == 'moules' %}aria-current="page"{% endif %}>Moules</a>
+      {% if is_chef %}<a href="/tarifs" {% if nav == 'tarifs' %}aria-current="page"{% endif %}>Tarifs</a>{% endif %}
       <a href="/production" {% if nav == 'production' %}aria-current="page"{% endif %}>Production</a>
       {% if is_chef %}<a href="/journal" {% if nav == 'journal' %}aria-current="page"{% endif %}>Journal</a>
       <a href="/utilisateurs" {% if nav == 'utilisateurs' %}aria-current="page"{% endif %}>Utilisateurs</a>{% endif %}
