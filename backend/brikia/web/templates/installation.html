@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Première installation{% endblock %}
+{% block content %}
+<section class="login card">
+  <div class="brand brand-lg"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">BrikIA</span></div>
+  <h1 class="h-md">Bienvenue — première configuration</h1>
+  <p class="muted">Créez le compte du chef de projet. Il pourra ensuite ajouter les autres utilisateurs.</p>
+  <form id="setup-form" novalidate>
+    <label for="nom">Nom complet</label>
+    <input id="nom" name="nom" autocomplete="name" autofocus required maxlength="120">
+    <label for="login">Identifiant</label>
+    <input id="login" name="login" autocomplete="username" required maxlength="64">
+    <label for="password">Mot de passe (8 caractères minimum)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <label for="confirm">Confirmation du mot de passe</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+    <p id="setup-error" class="form-error" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit">Créer le compte et commencer</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/installation.js"></script>{% endblock %}
