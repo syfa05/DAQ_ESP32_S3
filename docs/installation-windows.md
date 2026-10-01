@@ -56,8 +56,10 @@ Le Setup embarque Python 3.12 (distribution « embeddable » officielle), les d�
 ## Ce qui est vérifié, et ce qui ne l'est pas
 * Vérifié ici (Linux) : lanceur, création du premier compte, administration des utilisateurs, import et analyse réels
   d'un DXF via `installer/smoke_test.py`, assemblage du dossier d'application, résolution des roues Windows de toutes les dépendances.
-* Vérifié uniquement par le workflow Windows (voir son résultat dans le rapport) : exécution réelle sous Windows du Python embarqué,
-  compilation Inno Setup, installation/désinstallation silencieuses.
+* Vérifié sur un vrai Windows (GitHub Actions, `windows-latest`, exécution du 2026-10-01, toutes étapes vertes) : Python embarqué avec ifcopenshell/ezdxf/OCP,
+  démarrage du serveur, premier compte, import et analyse réels d'un DXF et d'un IFC, compilation Inno Setup, installation silencieuse
+  (tâche réseau cochée), nouveau test sur l'installation, désinstallation (programme supprimé, données conservées).
+  Reste non vérifié : l'assistant graphique (seul le mode silencieux est testé) et les raccourcis.
 * **Non vérifié** : affichage SmartScreen, installation avec un antivirus d'entreprise strict, Windows 32 bits (non pris en charge),
   macOS/Linux (utiliser l'installation `pip` du README).
 * Le Setup n'est **pas signé** (un certificat de signature de code payant est nécessaire pour supprimer l'avertissement SmartScreen).
