@@ -25,6 +25,20 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
+def _normalize_env_file(path: Path) -> None:
+    """Un « .env » enregistré en ANSI (Bloc-notes, anciens installeurs) fait planter la lecture UTF-8 :
+    on le reconvertit en UTF-8 (sans perte, cp1252 -> UTF-8)."""
+    try:
+        raw = path.read_bytes()
+        raw.decode("utf-8")
+    except FileNotFoundError:
+        return
+    except UnicodeDecodeError:
+        path.write_bytes(raw.decode("cp1252", errors="replace").encode("utf-8"))
+    except OSError:
+        pass
+
+
 def _find_backend() -> Path:
     for base in (HERE, HERE.parent):  # installé : app/ ; dépôt : installer/ -> racine
         if (base / "backend" / "brikia").is_dir():
@@ -98,6 +112,7 @@ def main(argv: list[str]) -> int:
 def _run(argv: list[str], home: Path) -> int:
     sys.path.insert(0, str(_find_backend()))
     home.mkdir(parents=True, exist_ok=True)
+    _normalize_env_file(home / ".env")
     os.chdir(home)  # « .env » et « data » sont relatifs à ce dossier
 
     from brikia.cli import main as cli_main  # import après sys.path

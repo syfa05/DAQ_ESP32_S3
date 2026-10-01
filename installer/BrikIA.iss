@@ -65,7 +65,7 @@ begin
     EnvFile := ExpandConstant('{commonappdata}\BrikIA\.env');
     if not FileExists(EnvFile) then
     begin
-      Content := '# Configuration BrikIA (voir docs/deploiement.md). Redémarrez BrikIA après modification.' + #13#10;
+      Content := '# Configuration BrikIA (voir docs/deploiement.md). Fichier ASCII : redemarrez BrikIA apres modification.' + #13#10;
       if WizardIsTaskSelected('lan') then
         Content := Content + 'BRIKIA_HOST=0.0.0.0' + #13#10
       else
