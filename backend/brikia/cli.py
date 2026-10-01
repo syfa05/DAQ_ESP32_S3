@@ -28,6 +28,12 @@ def main(argv: list[str] | None = None) -> int:
     p_u.add_argument("--login", required=True)
     p_u.add_argument("--nom", required=True)
     p_u.add_argument("--role", required=True, choices=[r.value for r in Role])
+    sub.add_parser("list-users", help="Liste les comptes")
+    p_p = sub.add_parser("reset-password", help="Définit un nouveau mot de passe (saisi au clavier)")
+    p_p.add_argument("--login", required=True)
+    p_a = sub.add_parser("set-active", help="Active ou désactive un compte")
+    p_a.add_argument("--login", required=True)
+    p_a.add_argument("--off", action="store_true", help="Désactive (sinon : active)")
     args = parser.parse_args(argv)
 
     settings = get_settings()
@@ -83,6 +89,36 @@ def main(argv: list[str] | None = None) -> int:
                 create_user(db, nom=args.nom, login=args.login, password=password,
                             role=Role(args.role))
             print(f"Compte créé : {args.login}")
+        elif args.cmd in ("list-users", "reset-password", "set-active"):
+            import getpass
+
+            from sqlalchemy import select
+
+            from .db import init_db, session_scope
+            from .models import User
+            from .services import users as users_service
+
+            upgrade(settings)
+            init_db(settings)
+            with session_scope() as db:
+                if args.cmd == "list-users":
+                    for u in users_service.list_users(db):
+                        print(f"  {u.login:<20} {u.role:<12} {'actif' if u.actif else 'DÉSACTIVÉ':<10} {u.nom}")
+                    return 0
+                user = db.scalar(select(User).where(User.login == args.login.strip().lower()))
+                if user is None:
+                    print(f"Erreur : compte « {args.login} » introuvable.", file=sys.stderr)
+                    return 1
+                if args.cmd == "set-active":
+                    users_service.set_active(db, None, user.id, not args.off)
+                    print(f"Compte « {user.login} » {'désactivé' if args.off else 'activé'}.")
+                else:
+                    password = getpass.getpass("Nouveau mot de passe : ")
+                    if password != getpass.getpass("Confirmation : "):
+                        print("Erreur : les mots de passe diffèrent.", file=sys.stderr)
+                        return 1
+                    users_service.reset_password(db, None, user.id, password)
+                    print(f"Mot de passe de « {user.login} » modifié.")
         elif args.cmd == "backup":
             print(f"Sauvegarde créée : {create_backup(settings, args.dest)}")
         elif args.cmd == "restore":

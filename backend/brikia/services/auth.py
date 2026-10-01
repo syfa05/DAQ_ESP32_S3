@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from datetime import timedelta
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..domain.enums import Role
 from ..domain.errors import (
-    InvalidCredentials, TooManyAttempts, ValidationFailed,
+    Conflict, InvalidCredentials, TooManyAttempts, ValidationFailed,
 )
 from ..models import User, UserSession
 from ..models.base import utcnow
@@ -54,15 +55,36 @@ class LoginThrottle:
         self._failures.pop(key, None)
 
 
-def create_user(db: Session, *, nom: str, login: str, password: str, role: Role) -> User:
+LOGIN_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
+
+
+def validate_password(password: str) -> None:
     if len(password) < MIN_PASSWORD_LENGTH:
         raise ValidationFailed(
             f"Le mot de passe doit contenir au moins {MIN_PASSWORD_LENGTH} caractères."
         )
-    user = User(nom=nom, login=login.strip().lower(), password_hash=hash_password(password),
+    if len(password) > 256:
+        raise ValidationFailed("Le mot de passe est trop long (256 caractères maximum).")
+
+
+def create_user(db: Session, *, nom: str, login: str, password: str, role: Role,
+                commit: bool = True) -> User:
+    validate_password(password)
+    nom, login = nom.strip(), login.strip().lower()
+    if not nom or len(nom) > 120:
+        raise ValidationFailed("Le nom est obligatoire (120 caractères maximum).")
+    if not LOGIN_RE.match(login):
+        raise ValidationFailed(
+            "Identifiant invalide : 3 à 64 caractères (lettres minuscules, chiffres, « . », « _ » ou « - »)."
+        )
+    if db.scalar(select(User.id).where(User.login == login)) is not None:
+        raise Conflict(f"L'identifiant « {login} » existe déjà.")
+    user = User(nom=nom, login=login, password_hash=hash_password(password),
                 role=Role(role).value)
     db.add(user)
-    db.commit()
+    db.flush()
+    if commit:
+        db.commit()
     return user
 
 

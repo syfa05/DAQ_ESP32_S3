@@ -19,6 +19,7 @@ from ..config import Settings
 from ..deps import AuthContext, get_db, get_settings_dep
 from ..domain.enums import Role
 from ..services import auth as auth_service
+from ..services import users as users_service
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -56,9 +57,12 @@ CHEF = {Role.CHEF_PROJET.value}
 
 
 @router.get("/connexion")
-def login_page(request: Request, auth: AuthContext | None = Depends(optional_auth)):
+def login_page(request: Request, auth: AuthContext | None = Depends(optional_auth),
+               db: Session = Depends(get_db)):
     if auth:
         return RedirectResponse("/", status_code=303)
+    if not users_service.has_users(db):
+        return RedirectResponse("/installation", status_code=303)
     return templates.TemplateResponse(request, "login.html", {"user": None, "role_labels": ROLE_LABELS})
 
 
@@ -91,3 +95,22 @@ def production_page(request: Request, auth=Depends(optional_auth)):
 @router.get("/journal")
 def audit_page(request: Request, auth=Depends(optional_auth)):
     return _render(request, auth, "journal.html", roles=CHEF, nav="journal")
+
+
+@router.get("/utilisateurs")
+def users_page(request: Request, auth=Depends(optional_auth)):
+    return _render(request, auth, "utilisateurs.html", roles=CHEF, nav="utilisateurs")
+
+
+@router.get("/compte")
+def account_page(request: Request, auth=Depends(optional_auth)):
+    return _render(request, auth, "compte.html", nav="compte")
+
+
+@router.get("/installation")
+def setup_page(request: Request, auth=Depends(optional_auth), db: Session = Depends(get_db)):
+    """Premier démarrage : création du premier compte chef de projet."""
+    if auth or users_service.has_users(db):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "installation.html",
+                                      {"user": None, "role_labels": ROLE_LABELS})

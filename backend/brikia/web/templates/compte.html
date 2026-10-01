@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Mon compte{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Mon compte</h1>
+  <p class="muted">{{ user.nom }} · {{ user.login }} · {{ role_labels[user.role] }}</p></div></div>
+<section class="card pad narrow">
+  <h2 class="h-md">Changer mon mot de passe</h2>
+  <form id="pwd-form" novalidate>
+    <label for="current">Mot de passe actuel</label>
+    <input id="current" name="current" type="password" autocomplete="current-password" required>
+    <label for="new">Nouveau mot de passe (8 caractères minimum)</label>
+    <input id="new" name="new" type="password" autocomplete="new-password" required>
+    <label for="confirm">Confirmation</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+    <p id="pwd-error" class="form-error" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit">Enregistrer</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/compte.js"></script>{% endblock %}

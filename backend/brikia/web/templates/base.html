@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <link rel="icon" href="data:,">
 </head>
-<body data-role="{{ user.role if user else '' }}">
+<body data-role="{{ user.role if user else '' }}" data-login="{{ user.login if user else '' }}">
   <a class="skip" href="#contenu">Aller au contenu</a>
   {% if user %}
   <header class="topbar">
@@ -19,10 +19,11 @@
       <a href="/" {% if nav == 'projets' %}aria-current="page"{% endif %}>Projets</a>
       <a href="/moules" {% if nav == 'moules' %}aria-current="page"{% endif %}>Moules</a>
       <a href="/production" {% if nav == 'production' %}aria-current="page"{% endif %}>Production</a>
-      {% if is_chef %}<a href="/journal" {% if nav == 'journal' %}aria-current="page"{% endif %}>Journal</a>{% endif %}
+      {% if is_chef %}<a href="/journal" {% if nav == 'journal' %}aria-current="page"{% endif %}>Journal</a>
+      <a href="/utilisateurs" {% if nav == 'utilisateurs' %}aria-current="page"{% endif %}>Utilisateurs</a>{% endif %}
     </nav>
     <div class="userbox">
-      <span class="user-name">{{ user.nom }}</span>
+      <a class="user-name" href="/compte" title="Mon compte">{{ user.nom }}</a>
       <span class="user-role">{{ role_labels[user.role] }}</span>
       <button class="btn btn-ghost btn-sm" id="logout" type="button">Déconnexion</button>
     </div>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Utilisateurs{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Utilisateurs</h1>
+  <p class="muted">Créez les comptes, désactivez un accès, réinitialisez un mot de passe.</p></div></div>
+<section class="card pad narrow">
+  <h2 class="h-md">Ajouter un utilisateur</h2>
+  <form id="user-form" novalidate>
+    <label for="nom">Nom complet</label>
+    <input id="nom" name="nom" required maxlength="120">
+    <label for="login">Identifiant (minuscules, chiffres, . _ -)</label>
+    <input id="login" name="login" autocomplete="off" required maxlength="64">
+    <label for="role">Rôle</label>
+    <select id="role" name="role">
+      <option value="operateur">Opérateur — lance la production</option>
+      <option value="chef_projet">Chef de projet — importe, valide, administre</option>
+    </select>
+    <label for="password">Mot de passe provisoire (8 caractères minimum)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <p id="user-error" class="form-error" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit">Créer le compte</button>
+  </form>
+</section>
+<div id="users" class="card table-card"><p class="muted pad">Chargement…</p></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/utilisateurs.js"></script>{% endblock %}

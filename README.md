@@ -170,3 +170,8 @@ Bibliothèques de lecture des plans (option `phase2`) : IfcOpenShell, ezdxf et O
 
 Polices Oswald, Inter et IBM Plex Mono (SIL Open Font License 1.1), embarquées dans
 `backend/brikia/static/fonts/` avec leurs licences.
+
+
+## Installation « application » (Windows) et utilisateurs
+* Fichier d'installation double-clic `BrikIA-Setup.exe` (Python embarqué, hors ligne) : voir `docs/installation-windows.md`.
+* Création et gestion des comptes (page **Utilisateurs**, mot de passe, désactivation, première configuration) : voir `docs/utilisateurs.md`.

@@ -9,8 +9,13 @@ const ACTIONS = {
   'production.start': 'Lancement de production',
   'production.complete': 'Fin de production',
   'production.error': 'Erreur de production',
+  'user.create': 'Création de compte',
+  'user.activate': 'Réactivation de compte',
+  'user.deactivate': 'Désactivation de compte',
+  'user.password_reset': 'Réinitialisation de mot de passe',
+  'user.password_change': 'Changement de mot de passe',
 };
-const TARGETS = { project: 'Projet', production_order: 'Ordre de production' };
+const TARGETS = { project: 'Projet', production_order: 'Ordre de production', user: 'Compte' };
 const box = document.getElementById('audit');
 const more = document.getElementById('more');
 let offset = 0;
