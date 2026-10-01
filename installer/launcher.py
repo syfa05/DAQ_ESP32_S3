@@ -66,9 +66,37 @@ def _lan_addresses() -> list[str]:
     return sorted({i[4][0] for i in infos if not i[4][0].startswith("127.")})
 
 
+def _report_crash(home: Path | None) -> None:
+    """Affiche l'erreur, l'enregistre dans <dossier>/launcher-erreur.log et garde la fenêtre ouverte."""
+    import traceback
+
+    text = traceback.format_exc()
+    print("\n=== BrikIA n'a pas pu démarrer ===\n" + text, file=sys.stderr)
+    for base in (home, Path(os.environ.get("TEMP", "."))):
+        try:
+            if base is not None:
+                (base / "launcher-erreur.log").write_text(text, encoding="utf-8")
+                print(f"(erreur enregistrée dans {base / 'launcher-erreur.log'})", file=sys.stderr)
+                break
+        except OSError:
+            continue
+    _pause_if_console()
+
+
 def main(argv: list[str]) -> int:
+    home: Path | None = None
+    try:
+        home = default_home()
+        return _run(argv, home)
+    except SystemExit:
+        raise
+    except BaseException:  # noqa: BLE001 - dernier filet : ne jamais fermer la fenêtre sans message
+        _report_crash(home)
+        return 1
+
+
+def _run(argv: list[str], home: Path) -> int:
     sys.path.insert(0, str(_find_backend()))
-    home = default_home()
     home.mkdir(parents=True, exist_ok=True)
     os.chdir(home)  # « .env » et « data » sont relatifs à ce dossier
 
@@ -110,9 +138,17 @@ def main(argv: list[str]) -> int:
 
     threading.Thread(target=_open_when_ready, daemon=True).start()
     try:
-        return cli_main(["serve"])
+        code = cli_main(["serve"])
+        if code:
+            _pause_if_console()
+        return code
     except KeyboardInterrupt:
         return 0
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            print(f"\nArrêt anormal du serveur (code {exc.code}).", file=sys.stderr)
+            _pause_if_console()
+        raise
     except OSError as exc:
         print(f"\nImpossible de démarrer : {exc}\n"
               f"Le port {settings.port} est peut-être déjà utilisé par un autre programme "
