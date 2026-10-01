@@ -37,6 +37,15 @@ def run_migrations_online() -> None:
     get_settings().ensure_dirs()
     engine = make_engine(_url())
     with engine.connect() as connection:
+        sqlite = connection.dialect.name == "sqlite"
+        if sqlite:
+            # Procédure SQLite pour modifier une table (DROP + RENAME) quand d'autres tables la
+            # référencent : clés étrangères désactivées PENDANT la migration (sans effet dans une
+            # transaction, donc avant), puis contrôle d'intégrité, puis réactivation.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            # Ferme la transaction « auto » ouverte par SQLAlchemy : sinon Alembic croit que la
+            # transaction est externe et ne valide plus (commit) les migrations.
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
@@ -45,6 +54,14 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
+        if sqlite:
+            broken = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            if broken:
+                raise RuntimeError(
+                    f"Intégrité des données compromise après migration ({len(broken)} référence(s) "
+                    "orpheline(s)). Une copie de la base d'avant migration est dans data/backups.")
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
     engine.dispose()
 
 
