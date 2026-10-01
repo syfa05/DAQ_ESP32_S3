@@ -245,3 +245,59 @@ def test_offcut_too_short_is_not_reused():
     r = ENGINE.calculate([wall(l=3250, h=400)], lib("BTC_DEMI", *NO_OPT))
     d = r.walls[0].detail
     assert d["coupes"] >= 1 and sum(r.walls[0].quantities.values()) >= sum(d["pose"].values())
+
+
+# --- Extrémités : angle par bout, butée, jonctions en T ----------------------------------------
+def wall_k(start, end, l=3000, h=300, junctions=(), openings=(), id_=1):
+    return WallInput(id_, W(f"M{id_}", l, h, False, tuple(openings), start, end, tuple(junctions)))
+
+
+def test_corner_piles_at_both_ends_when_the_wall_owns_both_corners():
+    r = ENGINE.calculate([wall_k("angle", "angle")], lib(*NO_OPT))
+    c0 = expand(course(r, 0))
+    assert c0[0][:3] == (0, ANG, 300) and c0[-1][:3] == (2700, ANG, 300)
+    assert sum(1 for p in c0 if p[1] == ANG) == 2
+    # tronçon libre [300, 2700] sans chaînage d'extrémité : 8 blocs
+    assert [p[1] for p in c0] == [ANG] + [STD] * 8 + [ANG]
+
+
+def test_abutting_and_continuation_ends_have_no_end_chaining():
+    free = expand(course(ENGINE.calculate([wall_k("libre", "libre")], lib(*NO_OPT)), 0))
+    abut = expand(course(ENGINE.calculate([wall_k("butee", "suite")], lib(*NO_OPT)), 0))
+    assert free[0][1] == CH and free[-1][1] == CH
+    assert abut[0][1] == STD and abut[-1][1] == STD and all(p[1] != CH for p in abut)
+
+
+def test_tee_junction_gets_a_vertical_chaining_column_on_every_course():
+    r = ENGINE.calculate([wall_k("butee", "butee", l=6000, junctions=(3000,))], lib(*NO_OPT))
+    for c in range(3):
+        cols = [p for p in expand(course(r, c)) if p[1] == CH]
+        assert [(p[0], p[2]) for p in cols] == [(2850, 300)]
+    assert any("jonction(s) en T" in n for n in r.walls[0].detail["notes"])
+
+
+def test_tee_junction_inside_an_opening_is_ignored_with_a_note():
+    ow = O("fenetre", 1200, 600, 2400, 300)
+    r = ENGINE.calculate([wall_k("butee", "butee", l=6000, h=1200, junctions=(3000,), openings=[ow])],
+                         lib(*NO_OPT))
+    assert any("ignorée" in n for n in r.walls[0].detail["notes"])
+
+
+def test_closed_rectangle_places_exactly_four_corner_stacks():
+    from brikia.adapters.analyzers.geometry_utils import CornerCandidate as C
+    from brikia.adapters.analyzers.geometry_utils import classify_ends
+    segs = [C(0, "", (0, 0), (6000, 0), 200), C(1, "", (6000, 0), (6000, 4000), 200),
+            C(2, "", (6000, 4000), (0, 4000), 200), C(3, "", (0, 4000), (0, 0), 200)]
+    lengths = [6000, 4000, 6000, 4000]
+    ends = classify_ends(segs)
+    walls = [wall_k(ends[i].start, ends[i].end, l=lengths[i], h=2000, id_=i + 1) for i in range(4)]
+    r = ENGINE.calculate(walls, lib(*NO_OPT))
+    angle_pieces = sum(len([p for c in range(20) for p in expand(course(r, c, i)) if p[1] == ANG])
+                       for i in range(4))
+    assert angle_pieces == 4 * 20          # 4 coins × 20 assises (et non 8 ou 16 piles)
+
+
+def test_legacy_corner_flag_still_places_one_pile_at_the_start():
+    r = ENGINE.calculate([wall(l=3000, h=200, corner=True)], lib(*NO_OPT))
+    c0 = expand(course(r, 0))
+    assert c0[0][1] == ANG and sum(1 for p in c0 if p[1] == ANG) == 1

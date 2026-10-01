@@ -142,13 +142,12 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         return out
 
     # -- ouvertures --------------------------------------------------------------------------
-    def _openings(self, wall: WallInput, m: dict, corner_len: int, n: int, notes: list[str]) -> list[dict]:
+    def _openings(self, wall: WallInput, m: dict, lo: int, hi: int, n: int, notes: list[str]) -> list[dict]:
         r, g = self.rules, wall.geometry
         hc, bearing = m["H"], r.lintel_bearing_mm
-        length = g.longueur_mm
         raw = []
         for o in g.openings:
-            w = min(o.largeur_mm, max(0, length - corner_len))
+            w = min(o.largeur_mm, max(0, hi - lo))
             if w < 100:
                 notes.append(f"Ouverture {o.type} de {o.largeur_mm} mm ignorée : mur trop court.")
                 continue
@@ -156,15 +155,15 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         # placement automatique des ouvertures sans position
         unknown = [o for o in raw if o["x"] is None]
         if unknown:
-            span = length - corner_len
+            span = hi - lo
             for i, o in enumerate(unknown):
-                o["x"] = int(corner_len + (i + 1) * span / (len(unknown) + 1) - o["w"] / 2)
+                o["x"] = int(lo + (i + 1) * span / (len(unknown) + 1) - o["w"] / 2)
                 o["estimated"] = True
             notes.append(f"Position de {len(unknown)} ouverture(s) inconnue (plan non lu en détail) : "
                          "placée(s) automatiquement, à vérifier.")
         for o in raw:
             o.setdefault("estimated", False)
-            o["x"] = max(corner_len, min(int(o["x"]), length - o["w"]))
+            o["x"] = max(lo, min(int(o["x"]), hi - o["w"]))
             if o["sill"] is None:
                 o["sill"] = 0 if o["type"] in ("porte", "portail") else r.default_window_sill_mm
                 o["sill_estimated"] = True
@@ -172,10 +171,10 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         placed: list[dict] = []
         gap_min = m["L_chain"] if m["chain"] is not None else 0
         for o in raw:  # évite les chevauchements : décale à droite, sinon abandonne
-            prev_end = placed[-1]["x"] + placed[-1]["w"] + gap_min if placed else corner_len
+            prev_end = placed[-1]["x"] + placed[-1]["w"] + gap_min if placed else lo
             if o["x"] < prev_end:
                 o["x"] = prev_end
-            if o["x"] + o["w"] > length:
+            if o["x"] + o["w"] > hi:
                 notes.append(f"Ouverture {o['type']} de {o['w']} mm non posable (chevauchement) : ignorée.")
                 continue
             placed.append(o)
@@ -207,29 +206,56 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         if residual:
             notes.append(f"Hauteur {height} mm : {n} assises de {hc} mm = {n * hc} mm "
                          f"(écart {residual:+d} mm à rattraper à la pose).")
-        corner_len = min(m["L_angle"], length) if g.is_corner else 0
-        ops = self._openings(wall, m, corner_len, n, notes)
+        # nature des extrémités : angle (pile d'angle), butée / suite (pas de chaînage d'extrémité),
+        # libre / te (chaînage vertical d'extrémité) ; inconnue (mur ancien) : « d'angle » = pile au début
+        sk, ek = g.start_kind, g.end_kind
+        if sk is None and ek is None:
+            sk, ek = ("angle" if g.is_corner else "libre"), "libre"
+        sk, ek = sk or "libre", ek or "libre"
+        la = min(m["L_angle"], length)
+        lo = la if sk == "angle" else 0
+        hi = length - la if ek == "angle" else length
+        if hi - lo < m["L_std"]:                       # mur trop court pour des piles aux deux bouts
+            lo, hi = (la if sk == "angle" else 0), length
+            if hi - lo < m["L_std"]:
+                lo, hi = 0, length
+            if lo == 0 and sk == "angle":
+                notes.append("Mur trop court : pile d'angle de début non posée.")
+        end_pile = length - hi
+        ops = self._openings(wall, m, lo, hi, n, notes)
 
         # colonnes de chaînage vertical (positions fixes sur toute la hauteur)
         columns: list[tuple[int, int]] = []
         if m["chain"] is not None:
             lc = m["L_chain"]
-            spans, cur = [], corner_len
+            spans, cur = [], lo
             for o in ops:
                 spans.append((cur, o["x"]))
                 cur = o["x"] + o["w"]
-            spans.append((cur, length))
+            spans.append((cur, hi))
             for i, (a, b) in enumerate(spans):
                 if b - a < lc:
                     continue
-                if a > corner_len or i > 0 or not g.is_corner:   # bord libre ou jambage
+                first, last = i == 0, i == len(spans) - 1
+                if (not first) or sk in ("libre", "te"):          # jambage ou bord libre
                     columns.append((a, a + lc))
-                if b - lc >= a + lc:
+                if ((not last) or ek in ("libre", "te")) and b - lc >= a + lc:
                     columns.append((b - lc, b))
                 inner = ceil((b - a) / r.chain_spacing_max_mm) - 1
                 for k in range(inner):
                     cx = int(a + (k + 1) * (b - a) / (inner + 1) - lc / 2)
                     columns.append((cx, cx + lc))
+            skipped = 0
+            for xj in g.junctions_mm:                           # refends appuyés sur ce mur
+                ca = int(xj - lc / 2)
+                ca = max(lo, min(ca, hi - lc))
+                if any(o["x"] < ca + lc and ca < o["x"] + o["w"] for o in ops):
+                    skipped += 1
+                    continue
+                columns.append((ca, ca + lc))
+            if g.junctions_mm:
+                notes.append(f"{len(g.junctions_mm) - skipped} jonction(s) en T : chaînage vertical posé à "
+                             "l'appui de chaque refend." + (f" {skipped} dans une ouverture : ignorée(s)." if skipped else ""))
         elif ops or length > r.chain_spacing_max_mm:
             notes.append("Aucun moule de chaînage vertical disponible : murs non chaînés.")
 
@@ -262,11 +288,12 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
             for o in ops:                                   # 1. vides
                 if o["c0"] <= c < o["c1"]:
                     take(o["x"], o["x"] + o["w"], "void", None)
-            if corner_len:                                   # 2. pile d'angle
-                a = _Piece(0, corner_len, m["angle"].id)
-                if not any(p.x < corner_len and p.shape == VOID for p in pieces):
-                    pieces.append(a)
-                    occupied.append((0, corner_len))
+            if lo and sk == "angle":                         # 2. piles d'angle
+                pieces.append(_Piece(0, lo, m["angle"].id))
+                occupied.append((0, lo))
+            if end_pile:
+                pieces.append(_Piece(hi, end_pile, m["angle"].id))
+                occupied.append((hi, length))
             belt = c == n - 1 and m["chain_h"] is not None   # ceinture : couvre tout le rang
             for ca, cb in ([] if belt else columns):         # 3. chaînage vertical
                 take(ca, cb, "chain", "chain")
@@ -319,7 +346,8 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         waste += sum(sum(v) for v in offcuts.values())   # chutes finales non réemployées
         detail = {
             "longueur_mm": length, "hauteur_mm": height, "assises": n, "hauteur_assise_mm": hc,
-            "ecart_hauteur_mm": residual, "coins": bool(corner_len),
+            "ecart_hauteur_mm": residual, "coins": bool(lo or end_pile),
+            "extremites": {"debut": sk, "fin": ek}, "jonctions": list(g.junctions_mm),
             "ouvertures": [{"type": o["type"], "x": o["x"], "largeur": o["w"], "hauteur": o["h"],
                             "allege": o["sill"], "c0": o["c0"], "c1": o["c1"],
                             "position_estimee": bool(o["estimated"])} for o in ops],

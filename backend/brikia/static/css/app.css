@@ -236,3 +236,11 @@ details.wallgrid .legend { margin-top: .5rem; }
 .course-table td, .course-table th { font-size: .82rem; }
 .cat-creux, .cat-trois_quarts, .cat-angle_135, .cat-te, .cat-chainage_h, .cat-pignon, .cat-acrotere, .cat-special { fill: #8a6d5a; background: #8a6d5a; }
 .cat-chainage_h { fill: #5f7a3d; background: #5f7a3d; } .cat-trois_quarts { fill: #b97a52; background: #b97a52; }
+
+/* Édition des murs */
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.badge.manual { margin-left: .5rem; font-size: .65rem; }
+.wall-dialog { max-width: min(860px, 94vw); }
+.wall-editor .table-card input, .wall-editor .table-card select { min-width: 5.5rem; }
+.wall-editor h3 { margin: 1rem 0 .2rem; font-size: 1rem; }
+.wall-editor select { min-width: 7.5rem; }

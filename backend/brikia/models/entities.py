@@ -119,6 +119,13 @@ class Wall(Base):
     longueur_mm: Mapped[int] = mapped_column(Integer)
     hauteur_mm: Mapped[int] = mapped_column(Integer)
     is_corner: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Nature des extrémités (angle | butee | te | suite | libre), jonctions en T (abscisses en mm),
+    # épaisseur ; « manuel » = mur créé ou corrigé à la main (et non lu dans le plan).
+    start_kind: Mapped[str | None] = mapped_column(String(10))
+    end_kind: Mapped[str | None] = mapped_column(String(10))
+    junctions_mm: Mapped[list | None] = mapped_column(JSON)
+    thickness_mm: Mapped[int | None] = mapped_column(Integer)
+    manuel: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))
 
     project: Mapped[Project] = relationship(back_populates="walls")
     openings: Mapped[list[Opening]] = relationship(
@@ -142,6 +149,7 @@ class Opening(Base):
     hauteur_mm: Mapped[int] = mapped_column(Integer)
     x_mm: Mapped[int | None] = mapped_column(Integer)
     sill_mm: Mapped[int | None] = mapped_column(Integer)
+    manuel: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))
 
     wall: Mapped[Wall] = relationship(back_populates="openings")
 

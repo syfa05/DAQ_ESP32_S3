@@ -12,7 +12,8 @@ from .errors import InvalidTransition
 ALLOWED_TRANSITIONS: dict[S, frozenset[S]] = {
     S.A_ANALYSER: frozenset({S.A_OPTIMISER}),
     S.A_OPTIMISER: frozenset({S.A_VALIDER}),
-    S.A_VALIDER: frozenset({S.VALIDE}),
+    # Un plan corrigé à la main après le calepinage impose de recalculer : retour à « à optimiser ».
+    S.A_VALIDER: frozenset({S.VALIDE, S.A_OPTIMISER}),
     S.VALIDE: frozenset({S.EN_PRODUCTION}),
     S.EN_PRODUCTION: frozenset({S.TERMINE}),
     S.TERMINE: frozenset(),

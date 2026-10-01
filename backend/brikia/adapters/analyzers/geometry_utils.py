@@ -152,3 +152,100 @@ def corner_keys(segments: Sequence[CornerCandidate], *, min_angle_deg: float = 6
                             if line_angle_deg(dirs[i], dirs[j]) >= min_angle_deg:
                                 flagged.update((s.key, group[j].key))
     return flagged
+
+
+# --------------------------------------------------------------------------- extrémités
+@dataclass(frozen=True)
+class WallEnds:
+    """Nature des deux extrémités d'un mur et jonctions en T sur son corps.
+
+    Nature d'une extrémité :
+    * ``angle``  : angle en L dont CE mur est propriétaire (il pose le bloc d'angle) ;
+    * ``butee``  : angle en L dont l'autre mur est propriétaire (ce mur vient en butée) ;
+    * ``te``     : l'extrémité s'appuie contre le corps d'un autre mur ;
+    * ``suite``  : prolongement d'un mur aligné (segment d'un même mur polygonal) ;
+    * ``libre``  : bout de mur libre.
+    ``junctions`` : abscisses (mm depuis le début du mur) où un autre mur s'appuie sur celui-ci.
+    """
+
+    start: str = "libre"
+    end: str = "libre"
+    junctions: tuple[int, ...] = ()
+
+
+class _BoxGrid:
+    """Grille de boîtes englobantes : retrouve les segments proches d'un point sans test en O(n²)."""
+
+    def __init__(self, cell: float) -> None:
+        self.cell = cell
+        self.cells: dict[tuple[int, int], list[int]] = {}
+
+    def insert(self, idx: int, a: Point, b: Point, pad: float) -> None:
+        c = self.cell
+        x0, x1 = sorted((a[0], b[0]))
+        y0, y1 = sorted((a[1], b[1]))
+        for gx in range(math.floor((x0 - pad) / c), math.floor((x1 + pad) / c) + 1):
+            for gy in range(math.floor((y0 - pad) / c), math.floor((y1 + pad) / c) + 1):
+                self.cells.setdefault((gx, gy), []).append(idx)
+
+    def near(self, p: Point) -> list[int]:
+        return self.cells.get((math.floor(p[0] / self.cell), math.floor(p[1] / self.cell)), [])
+
+
+def classify_ends(segments: Sequence[CornerCandidate], *, min_angle_deg: float = 60.0,
+                  max_continuation_deg: float = 20.0, slack_mm: float = 50.0) -> dict[int, WallEnds]:
+    """Classe les extrémités de chaque mur (même niveau uniquement) et repère les jonctions en T.
+
+    * deux extrémités qui se rejoignent (tolérance = plus grande épaisseur + marge) : angle en L si les
+      directions font ≥ ``min_angle_deg`` ; prolongement si elles sont presque alignées ;
+    * une extrémité qui touche le CORPS d'un autre mur (pas ses bouts) : jonction en T ;
+    * **un seul propriétaire par angle** : le mur d'indice le plus bas pose le bloc d'angle, les autres
+      viennent en butée (un angle de 4 murs n'est donc jamais compté 4 fois).
+    """
+    result: dict[int, WallEnds] = {}
+    by_level: dict[str, list[CornerCandidate]] = {}
+    for s in segments:
+        by_level.setdefault(s.level, []).append(s)
+    for group in by_level.values():
+        n = len(group)
+        tol_max = max(s.thickness for s in group) + slack_mm
+        dirs = [unit_vector(s.a, s.b) for s in group]
+        lengths = [dist(s.a, s.b) for s in group]
+        grid = _BoxGrid(max(tol_max, 1.0))
+        for i, s in enumerate(group):
+            grid.insert(i, s.a, s.b, tol_max)
+        kinds: list[list[str]] = [["libre", "libre"] for _ in range(n)]
+        junctions: list[list[int]] = [[] for _ in range(n)]
+        for i, s in enumerate(group):
+            for e, p in enumerate((s.a, s.b)):
+                decided = None
+                owner_below = False
+                tee: tuple[int, float] | None = None
+                for j in set(grid.near(p)):
+                    if j == i:
+                        continue
+                    o = group[j]
+                    tol = max(s.thickness, o.thickness) + slack_mm
+                    angle = line_angle_deg(dirs[i], dirs[j])
+                    ends = [q for q in (o.a, o.b) if dist(p, q) <= tol]
+                    if ends:                                   # extrémité contre extrémité
+                        if angle >= min_angle_deg:
+                            decided = "corner"
+                            owner_below = owner_below or j < i
+                        elif angle <= max_continuation_deg and decided is None:
+                            decided = "suite"
+                    elif angle >= min_angle_deg:               # extrémité contre le corps de j ?
+                        d, along = point_segment_distance(p, o.a, o.b)   # along : mm depuis o.a
+                        if d <= o.thickness / 2 + slack_mm and o.thickness / 2 <= along <= lengths[j] - o.thickness / 2:
+                            tee = (j, along)
+                if decided == "corner":
+                    kinds[i][e] = "butee" if owner_below else "angle"
+                elif decided == "suite":
+                    kinds[i][e] = "suite"
+                elif tee is not None:
+                    kinds[i][e] = "te"
+                    junctions[tee[0]].append(int(round(tee[1])))
+        for i, s in enumerate(group):
+            js = tuple(sorted(set(junctions[i])))
+            result[s.key] = WallEnds(kinds[i][0], kinds[i][1], js)
+    return result

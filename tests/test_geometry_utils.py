@@ -93,3 +93,54 @@ def test_corner_detection_scales_to_large_plans():
     flagged = corner_keys(segs)
     assert len(flagged) == 3000                      # chaque paire horizontal/vertical forme un angle
     assert time.perf_counter() - started < 3.0       # mesuré : ~0,05 s ; marge large pour les machines lentes
+
+
+# --- Extrémités de murs : angles (un propriétaire), butées, T, prolongements ---------------------
+from brikia.adapters.analyzers.geometry_utils import CornerCandidate as _C
+from brikia.adapters.analyzers.geometry_utils import classify_ends
+
+
+def _rect_walls():
+    return [_C(0, "", (0, 0), (6000, 0), 200), _C(1, "", (6000, 0), (6000, 4000), 200),
+            _C(2, "", (6000, 4000), (0, 4000), 200), _C(3, "", (0, 4000), (0, 0), 200)]
+
+
+def test_closed_rectangle_has_exactly_four_corner_owners():
+    ends = classify_ends(_rect_walls())
+    owners = sum((e.start == "angle") + (e.end == "angle") for e in ends.values())
+    butees = sum((e.start == "butee") + (e.end == "butee") for e in ends.values())
+    assert owners == 4 and butees == 4  # 4 coins : un propriétaire et une butée chacun
+    assert ends[0].start == "angle" and ends[3].end == "butee"   # coin (0,0) : mur d'indice le plus bas
+
+
+def test_partition_ending_on_a_wall_body_is_a_tee_and_registers_a_junction():
+    ends = classify_ends(_rect_walls() + [_C(4, "", (3000, 100), (3000, 3900), 150)])
+    assert (ends[4].start, ends[4].end) == ("te", "te")
+    assert ends[0].junctions == (3000,) and ends[2].junctions == (3000,)
+    assert ends[1].junctions == ()
+
+
+def test_collinear_segments_are_a_continuation_not_a_corner():
+    ends = classify_ends([_C(0, "", (0, 0), (4000, 0), 200), _C(1, "", (4000, 0), (9000, 0), 200)])
+    assert ends[0].end == "suite" and ends[1].start == "suite"
+    assert ends[0].start == "libre" and ends[1].end == "libre"
+
+
+def test_three_walls_meeting_at_a_point_have_a_single_owner():
+    ends = classify_ends([_C(0, "", (0, 0), (3000, 0), 200), _C(1, "", (3000, 0), (3000, 3000), 200),
+                          _C(2, "", (3000, 0), (6000, 0), 200)])
+    at_point = [ends[0].end, ends[1].start, ends[2].start]
+    assert at_point.count("angle") == 1 and at_point.count("butee") + at_point.count("suite") == 2
+
+
+def test_walls_of_different_levels_are_not_connected():
+    ends = classify_ends([_C(0, "RDC", (0, 0), (4000, 0), 200), _C(1, "R+1", (4000, 0), (4000, 3000), 200)])
+    assert ends[0].end == "libre" and ends[1].start == "libre"
+
+
+def test_classification_scales_to_thousands_of_walls():
+    import time
+    segs = [_C(i, "", (i * 5000.0, 0), (i * 5000.0 + 4900, 0), 200) for i in range(3000)]
+    t = time.perf_counter()
+    ends = classify_ends(segs)
+    assert time.perf_counter() - t < 3.0 and len(ends) == 3000

@@ -33,7 +33,7 @@ from ...domain.errors import AnalysisFailed
 from ...domain.geometry import OpeningGeometry, ProjectGeometry, WallGeometry
 from ._native import silence_native_stdout
 from .base import AnalyzerUnavailable, PlanFile
-from .geometry_utils import CornerCandidate, Point, corner_keys, dist
+from .geometry_utils import CornerCandidate, Point, classify_ends, dist
 
 log = logging.getLogger("brikia.analyzers.step")
 
@@ -291,22 +291,25 @@ class StepPlanAnalyzer:
                 name = f"Niveau {w.z_bottom / 1000:+.2f} m".replace(".", ",")
                 levels.append((w.z_bottom, name))
                 names.append(name)
-        corners = corner_keys([CornerCandidate(i, names[i], w.a, w.b, w.thickness) for i, w in enumerate(walls)])
+        ends = classify_ends([CornerCandidate(i, names[i], w.a, w.b, w.thickness) for i, w in enumerate(walls)])
         counters: Counter[str] = Counter()
         out: list[WallGeometry] = []
         for i, w in enumerate(walls):
             counters[names[i]] += 1
             length, height = int(round(w.length)), int(round(w.height))
             openings = _cap(w.openings, length, height)
+            e = ends[i]
             out.append(WallGeometry(nom=f"{names[i]} · Mur n°{counters[names[i]]}"[:120], longueur_mm=length,
-                                    hauteur_mm=height, is_corner=i in corners, openings=tuple(openings)))
+                                    hauteur_mm=height, is_corner=bool({"angle", "butee"} & {e.start, e.end}),
+                                    openings=tuple(openings), start_kind=e.start, end_kind=e.end,
+                                    junctions_mm=e.junctions, thickness_mm=int(round(w.thickness))))
         notes = [
             "APPROXIMATION : un fichier STEP ne désigne pas les murs ; ils sont reconnus par leur forme "
             "(solide vertical, épaisseur 40 à 600 mm, longueur ≥ 3 épaisseurs).",
             f"{len(out)} mur(s) reconnu(s) sur {n_solids} solide(s), {sum(len(w.openings) for w in out)} ouverture(s), "
             f"{len(levels)} niveau(x) (altitude du pied des murs). Unités converties en millimètres.",
             "La hauteur retenue est la hauteur maximale de chaque solide (murs à sommet incliné : surestimée).",
-            "Les angles sont déduits des jonctions entre murs d'un même niveau.",
+            "Angles, jonctions en T et bouts libres déduits des jonctions entre murs d'un même niveau.",
         ]
         if up_name == "Y":
             notes.append("Axe vertical du fichier : Y" + (" (détecté automatiquement)." if automatic else " (configuration)."))

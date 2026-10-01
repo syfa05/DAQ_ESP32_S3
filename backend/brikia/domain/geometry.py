@@ -40,6 +40,12 @@ class WallGeometry:
     hauteur_mm: int
     is_corner: bool = False
     openings: tuple[OpeningGeometry, ...] = ()
+    # Nature des extrémités (angle | butee | te | suite | libre ; None = inconnue) et jonctions en T
+    # (abscisses en mm depuis le début du mur). Épaisseur du mur si connue.
+    start_kind: str | None = None
+    end_kind: str | None = None
+    junctions_mm: tuple[int, ...] = ()
+    thickness_mm: int | None = None
 
     @property
     def gross_area_mm2(self) -> int:

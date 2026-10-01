@@ -13,6 +13,7 @@ ALLOWED = [
     (S.A_ANALYSER, S.A_OPTIMISER),
     (S.A_OPTIMISER, S.A_VALIDER),
     (S.A_VALIDER, S.VALIDE),
+    (S.A_VALIDER, S.A_OPTIMISER),
     (S.VALIDE, S.EN_PRODUCTION),
     (S.EN_PRODUCTION, S.TERMINE),
 ]
@@ -34,7 +35,7 @@ def test_every_other_transition_is_refused(src, dst):
 
 
 def test_transition_table_has_exactly_five_edges():
-    assert sum(len(v) for v in ALLOWED_TRANSITIONS.values()) == 5
+    assert sum(len(v) for v in ALLOWED_TRANSITIONS.values()) == 6
 
 
 def test_unknown_status_rejected():

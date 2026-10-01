@@ -65,7 +65,7 @@ def test_migration_is_idempotent_when_partly_applied(settings):
     con.close()
     upgrade(settings)
     con = sqlite3.connect(settings.db_path)
-    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0006"
+    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0007"
     assert con.execute("SELECT count(*) FROM pricing_settings").fetchone()[0] == 1
     con.close()
     upgrade(settings)  # rejouable sans effet

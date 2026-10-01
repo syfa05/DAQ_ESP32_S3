@@ -15,6 +15,7 @@ class OpeningOut(BaseModel):
     hauteur_mm: int
     x_mm: int | None = None
     sill_mm: int | None = None
+    manuel: bool = False
 
 
 class WallOut(BaseModel):
@@ -24,6 +25,11 @@ class WallOut(BaseModel):
     longueur_mm: int
     hauteur_mm: int
     is_corner: bool
+    start_kind: str | None = None
+    end_kind: str | None = None
+    junctions_mm: list[int] | None = None
+    thickness_mm: int | None = None
+    manuel: bool = False
     openings: list[OpeningOut] = []
 
     @computed_field

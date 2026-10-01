@@ -4,6 +4,7 @@ import * as fmt from '../lib/format.js';
 import { orderCard } from '../lib/orderview.js';
 import { PIPELINE, STATUS_LABELS, busy, confirmDialog, openingLabel, showError, sourceBadge, statusBadge, toast } from '../lib/ui.js';
 import { courseSummary, elevation, legend } from '../lib/elevation.js';
+import { END_SHORT, openWallEditor } from '../lib/walleditor.js';
 import { wallGrid } from '../lib/wallgrid.js';
 
 const id = Number(document.querySelector('main').dataset.projectId);
@@ -121,27 +122,40 @@ function analysisPanel(p) {
     notes.length ? h('ul', { class: 'notes' }, notes) : null);
 }
 
-function wallsTable(walls) {
+function wallsTable(walls, project) {
   let net = 0;
+  const editable = isChef && ['a_optimiser', 'a_valider'].includes(project.status);
+  const ends = (w) => (w.start_kind || w.end_kind
+    ? `${END_SHORT[w.start_kind] || '?'} → ${END_SHORT[w.end_kind] || '?'}` : (w.is_corner ? 'angle' : '—'));
   const rows = walls.map((w) => {
     net += w.surface_nette_m2;
+    const edit = editable ? h('td', {}, h('button', { class: 'btn btn-ghost btn-sm', type: 'button',
+      onclick: () => openWallEditor({ projectId: id, wall: w, status: project.status, onDone: load }) }, 'Modifier')) : null;
     return h('tr', {},
-      h('td', {}, w.nom), h('td', { class: 'num mono' }, fmt.mm2m(w.longueur_mm)),
-      h('td', { class: 'num mono' }, fmt.mm2m(w.hauteur_mm)), h('td', {}, w.is_corner ? 'Oui' : '—'),
+      h('td', {}, w.nom, w.manuel ? h('span', { class: 'badge live manual' }, 'corrigé') : null),
+      h('td', { class: 'num mono' }, fmt.mm2m(w.longueur_mm)),
+      h('td', { class: 'num mono' }, fmt.mm2m(w.hauteur_mm)),
+      h('td', { class: 'small mono' }, ends(w), w.junctions_mm?.length ? h('div', { class: 'muted' }, `T : ${w.junctions_mm.join(', ')}`) : null),
       h('td', { class: 'small' }, w.openings.length
-        ? w.openings.map((o) => h('div', {}, `${openingLabel(o.type)} ${fmt.mm2m(o.largeur_mm)} × ${fmt.mm2m(o.hauteur_mm)} m`))
+        ? w.openings.map((o) => h('div', {}, `${openingLabel(o.type)} ${fmt.mm2m(o.largeur_mm)} × ${fmt.mm2m(o.hauteur_mm)} m`
+          + (o.x_mm != null ? ` · à ${o.x_mm} mm` : '')))
         : '—'),
       h('td', { class: 'num mono' }, fmt.dec2(w.surface_brute_m2)),
       h('td', { class: 'num mono' }, fmt.dec2(w.surface_ouvertures_m2)),
-      h('td', { class: 'num mono' }, fmt.dec2(w.surface_nette_m2)));
+      h('td', { class: 'num mono' }, fmt.dec2(w.surface_nette_m2)), edit);
   });
-  return h('section', { 'aria-labelledby': 'h-walls' }, h('h2', { id: 'h-walls' }, 'Murs analysés'),
+  const head = ['Mur', 'Long. (m)', 'Haut. (m)', 'Extrémités', 'Ouvertures', 'Brute (m²)', 'Ouv. (m²)', 'Nette (m²)'];
+  if (editable) head.push('');
+  const add = editable ? h('button', { class: 'btn btn-secondary btn-sm', type: 'button',
+    onclick: () => openWallEditor({ projectId: id, wall: null, status: project.status, onDone: load }) }, 'Ajouter un mur') : null;
+  return h('section', { 'aria-labelledby': 'h-walls' },
+    h('div', { class: 'section-head' }, h('h2', { id: 'h-walls' }, 'Murs analysés'), add),
+    editable ? h('p', { class: 'note' }, 'Vous pouvez corriger un mur (dimensions, extrémités, jonctions, ouvertures) : l\'analyse ne lit pas toujours tout. Une correction annule le calepinage, à recalculer.') : null,
     h('div', { class: `card table-card ${walls.length > 25 ? 'scroll' : ''}` }, h('table', {},
-      h('thead', {}, h('tr', {}, ...['Mur', 'Long. (m)', 'Haut. (m)', 'Angle', 'Ouvertures', 'Brute (m²)', 'Ouv. (m²)', 'Nette (m²)']
-        .map((t, i) => h('th', { class: i === 1 || i === 2 || i >= 5 ? 'num' : '' }, t)))),
+      h('thead', {}, h('tr', {}, ...head.map((t, i) => h('th', { class: i === 1 || i === 2 || (i >= 5 && i <= 7) ? 'num' : '' }, t)))),
       h('tbody', {}, rows),
       h('tfoot', {}, h('tr', {}, h('td', { colspan: 7 }, 'Surface nette totale'),
-        h('td', { class: 'num mono' }, fmt.dec2(net)))))));
+        h('td', { class: 'num mono' }, fmt.dec2(net)), editable ? h('td') : null)))));
 }
 
 function bomTable(layout) {
@@ -280,7 +294,7 @@ function render(project, layout, order, quote) {
     nodes.push(h('section', { 'aria-labelledby': 'h-prod' }, h('h2', { id: 'h-prod' }, 'Production'),
       h('p', { class: 'sim-banner' }, 'Production simulée — aucune machine réelle connectée.'), orderView.node));
   }
-  if (project.walls.length) nodes.push(wallsTable(project.walls));
+  if (project.walls.length) nodes.push(wallsTable(project.walls, project));
   if (layout) nodes.push(layoutSection(project, layout));
   if (quote) nodes.push(quoteSection(quote));
   replace(root, ...nodes);

@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from ...domain.errors import AnalysisFailed
 from ...domain.geometry import OpeningGeometry, ProjectGeometry, WallGeometry
 from .base import AnalyzerUnavailable, PlanFile
-from .geometry_utils import CornerCandidate, Point, corner_keys, dist
+from .geometry_utils import CornerCandidate, Point, classify_ends, dist
 
 log = logging.getLogger("brikia.analyzers.dxf")
 
@@ -174,7 +174,7 @@ class DxfPlanAnalyzer:
         opened = _attach_openings(pieces, doors_raw, windows_raw, opt)
 
         pieces.sort(key=lambda p: (p.layer, round(p.a[1] / 10), round(p.a[0] / 10)))
-        corners = corner_keys([CornerCandidate(i, "", p.a, p.b, p.thickness) for i, p in enumerate(pieces)])
+        ends = classify_ends([CornerCandidate(i, "", p.a, p.b, p.thickness) for i, p in enumerate(pieces)])
         counters: Counter[str] = Counter()
         walls: list[WallGeometry] = []
         for i, p in enumerate(pieces):
@@ -182,9 +182,12 @@ class DxfPlanAnalyzer:
             counters[label] += 1
             length = int(round(p.length))
             openings = _cap(p.openings, length * opt.wall_height_mm)
+            e = ends[i]
             walls.append(WallGeometry(
                 nom=f"{label} n°{counters[label]}"[:120], longueur_mm=length, hauteur_mm=opt.wall_height_mm,
-                is_corner=i in corners, openings=tuple(openings)))
+                is_corner=bool({"angle", "butee"} & {e.start, e.end}), openings=tuple(openings),
+                start_kind=e.start, end_kind=e.end, junctions_mm=e.junctions,
+                thickness_mm=int(round(p.thickness))))
 
         notes = [
             "APPROXIMATION : plan DXF 2D. Les hauteurs ne figurent pas dans le fichier : "

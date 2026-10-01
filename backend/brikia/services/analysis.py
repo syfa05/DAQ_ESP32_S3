@@ -55,7 +55,9 @@ def analyse_project(db: Session, settings: Settings, analyzer: PlanAnalyzer,
         project.analysis_notes = list(geometry.notes)
         for w in geometry.walls:
             wall = Wall(project_id=project.id, nom=w.nom, longueur_mm=w.longueur_mm,
-                        hauteur_mm=w.hauteur_mm, is_corner=w.is_corner)
+                        hauteur_mm=w.hauteur_mm, is_corner=w.is_corner,
+                        start_kind=w.start_kind, end_kind=w.end_kind,
+                        junctions_mm=list(w.junctions_mm) or None, thickness_mm=w.thickness_mm)
             wall.openings = [Opening(type=o.type, largeur_mm=o.largeur_mm, hauteur_mm=o.hauteur_mm,
                                      x_mm=o.x_mm, sill_mm=o.sill_mm) for o in w.openings]
             db.add(wall)

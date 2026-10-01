@@ -12,6 +12,7 @@ from .adapters.analyzers.dispatch import build_plan_analyzer
 from .api import audit as audit_api
 from .api import users as users_api
 from .api import documents as documents_api
+from .api import walls as walls_api
 from .api import auth as auth_api
 from .adapters.layout.courses import CourseLayoutEngine
 from .adapters.layout.rule_based import DefaultRuleBasedLayoutEngine
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_api.router)
     app.include_router(users_api.router)
     app.include_router(documents_api.router)
+    app.include_router(walls_api.router)
 
     app.include_router(web_routes.router)
 

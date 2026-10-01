@@ -29,7 +29,7 @@ from ...domain.geometry import OpeningGeometry, ProjectGeometry, WallGeometry
 from .base import AnalyzerUnavailable, PlanFile
 from ._native import silence_native_stdout
 from .geometry_utils import (
-    CornerCandidate, Point, corner_keys, dist, min_area_rect, point_segment_distance, unit_vector,
+    CornerCandidate, Point, classify_ends, dist, min_area_rect, point_segment_distance, unit_vector,
 )
 
 log = logging.getLogger("brikia.analyzers.ifc")
@@ -255,7 +255,7 @@ class IfcPlanAnalyzer:
             CornerCandidate(key, i.level, s.a, s.b, i.thickness_mm)
             for key, (i, s) in enumerate(_iter_segments(infos))
         ]
-        corners = corner_keys(candidates)
+        ends = classify_ends(candidates)
 
         counters: Counter[tuple[str, str]] = Counter()
         walls: list[WallGeometry] = []
@@ -267,9 +267,12 @@ class IfcPlanAnalyzer:
                 suffix = f"{n}" if len(info.segments) == 1 else f"{n}.{idx}"
                 name = f"{info.level} · {info.base_name} n°{suffix}"[:MAX_NAME]
                 openings = _cap_openings(seg.openings, int(round(seg.length)) * info.height_mm, stats)
+                e = ends[key]
                 walls.append(WallGeometry(
                     nom=name, longueur_mm=int(round(seg.length)), hauteur_mm=info.height_mm,
-                    is_corner=key in corners, openings=tuple(openings)))
+                    is_corner=bool({"angle", "butee"} & {e.start, e.end}), openings=tuple(openings),
+                    start_kind=e.start, end_kind=e.end, junctions_mm=e.junctions,
+                    thickness_mm=int(round(info.thickness_mm))))
                 key += 1
 
         notes = [
@@ -295,7 +298,7 @@ class IfcPlanAnalyzer:
             notes.append(f"{stats['ouvertures_ajustees']} ouverture(s) ramenée(s) aux dimensions de leur mur.")
         if stats["ouvertures_limitees"]:
             notes.append(f"{stats['ouvertures_limitees']} ouverture(s) retirée(s) : elles occupaient presque tout le mur.")
-        notes.append("Les angles sont déduits des jonctions entre murs d'un même niveau.")
+        notes.append("Angles, jonctions en T et bouts libres déduits des jonctions entre murs d'un même niveau (un seul propriétaire par angle).")
         return ProjectGeometry(walls=tuple(walls), source="ifc", notes=tuple(notes))
 
 
