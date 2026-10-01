@@ -60,9 +60,14 @@ jobs:
           Set-Location $env:GITHUB_WORKSPACE
           & "$dir\python\python.exe" installer\smoke_test.py "$dir\python\python.exe" "$dir\app\launcher.py" --plan "tests/fixtures/dxf/Demo - Restaurant (Template F0).dxf"
           if ($LASTEXITCODE -ne 0) { throw "Test de fumée de l'installation : échec" }
-          & "$dir\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          Start-Sleep 5
-          if (Test-Path "$dir\python\python.exe") { throw "Désinstallation incomplète" }
+          # unins000.exe relance une copie temporaire et rend la main tout de suite : on attend la fin réelle.
+          Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Test-Path "$dir\python\python.exe") -and ((Get-Date) -lt $deadline)) { Start-Sleep 3 }
+          if (Test-Path "$dir\python\python.exe") {
+            Get-Process | Where-Object { $_.Path -like "$dir*" } | Format-Table Name, Id, Path
+            throw "Désinstallation incomplète"
+          }
           if (-not (Test-Path "$env:ProgramData\BrikIA")) { throw "Les données auraient dû être conservées" }
 
       - uses: actions/upload-artifact@v4
