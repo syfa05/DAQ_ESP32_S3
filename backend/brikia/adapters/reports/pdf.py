@@ -96,9 +96,70 @@ def draw_prims(c: rl_canvas.Canvas, prims: list[Prim], x: float, y: float, scale
 
 
 # --- Rapport -------------------------------------------------------------------------------
+CAT_COLORS = {
+    "standard": "#c0432e", "angle": "#d68a2d", "chainage": "#7c9f6c", "linteau": "#6f93bf",
+    "demi": "#d09a82", "appui": "#7c8f9f", "chainage_h": "#5f7a3d", "trois_quarts": "#b97a52",
+}
+
+
+def _lighten(hex_color: str, k: float = 0.55) -> colors.Color:
+    c = colors.HexColor(hex_color)
+    return colors.Color(c.red + (1 - c.red) * k, c.green + (1 - c.green) * k, c.blue + (1 - c.blue) * k)
+
+
+from reportlab.platypus.flowables import Flowable  # noqa: E402
+
+
+class WallElevation(Flowable):
+    """Élévation d'un mur assise par assise, à l'échelle, en vectoriel."""
+
+    def __init__(self, detail: dict, shapes: dict[int, dict], avail_w: float, max_h: float) -> None:
+        super().__init__()
+        self.d, self.shapes = detail, shapes
+        gutter = 6 * mm
+        self.gutter = gutter
+        L, H = detail["longueur_mm"], detail["assises"] * detail["hauteur_assise_mm"]
+        self.scale = min((avail_w - gutter) / L, max_h / H)
+        self.width, self.height = gutter + L * self.scale, H * self.scale + 4 * mm
+
+    def wrap(self, aw, ah):  # noqa: ANN001
+        return self.width, self.height
+
+    def draw(self) -> None:
+        c, d, sc, hc = self.canv, self.d, self.scale, self.d["hauteur_assise_mm"]
+        n = d["assises"]
+        c.setLineWidth(0.15)
+        for ci, runs in enumerate(d["courses"]):
+            y = (ci) * hc * sc
+            for x, shape, plen, count, cut in runs:
+                if shape == 0:
+                    c.setFillColor(colors.HexColor("#efece4"))
+                    c.setStrokeColor(colors.HexColor("#b9b3a6"))
+                    c.rect(self.gutter + x * sc, y, plen * sc, hc * sc, stroke=0, fill=1)
+                    continue
+                cat = self.shapes.get(shape, {}).get("categorie", "standard")
+                base = CAT_COLORS.get(cat, "#8a6d5a")
+                c.setFillColor(_lighten(base) if cut else colors.HexColor(base))
+                c.setStrokeColor(colors.HexColor("#3b2a1f"))
+                for i in range(count):
+                    c.rect(self.gutter + (x + i * plen) * sc, y, plen * sc, hc * sc, stroke=1, fill=1)
+        c.setFillColor(GREY)
+        c.setFont("Helvetica", 5)
+        for ci in range(0, n, 5):
+            c.drawRightString(self.gutter - 1.2 * mm, ci * hc * sc + hc * sc * 0.25, str(ci + 1))
+        c.setStrokeColor(OCRE)
+        c.setLineWidth(0.4)
+        yb = n * hc * sc + 1.6 * mm
+        c.line(self.gutter, yb, self.width, yb)
+        c.setFillColor(OCRE)
+        c.setFont("Helvetica", 6)
+        c.drawCentredString((self.gutter + self.width) / 2, yb + 0.6 * mm, f"{d['longueur_mm']} mm")
+
+
 def build_report(*, project: dict, walls: list[dict], bom: dict | None, quote: dict | None,
                  mold_sheets: list[tuple[str, list[Prim]]], generated_by: str,
-                 generated_at: datetime, version: str) -> bytes:
+                 generated_at: datetime, version: str, elevations: list[dict] | None = None,
+                 elevations_omitted: int = 0) -> bytes:
     buf = io.BytesIO()
     ss = getSampleStyleSheet()
     h1 = ParagraphStyle("h1", parent=ss["Heading1"], fontName="Helvetica-Bold", fontSize=18,
@@ -204,6 +265,23 @@ def build_report(*, project: dict, walls: list[dict], bom: dict | None, quote: d
             S.append(Paragraph(_t("Avertissement : " + a), warn))
     else:
         S.append(Paragraph("Aucun calepinage calculé pour ce projet.", body))
+
+    if elevations:
+        S.append(PageBreak())
+        S.append(Paragraph("Calepinage assise par assise", h2))
+        S.append(Paragraph(_t("Pose réelle bloc par bloc (joints décalés, ouvertures, linteaux, appuis, "
+                              "chaînages, angles). Pièces claires = coupées. Les quantités à produire "
+                              "ajoutent une marge de casse."), small))
+        for el in elevations:
+            d = el["detail"]
+            head = Paragraph(_t(f"<b>{el['nom']}</b> - {d['longueur_mm']} x {d['hauteur_mm']} mm - "
+                                f"{d['assises']} assises - {d['coupes']} coupe(s)"), body)
+            notes = [Paragraph(_t("• " + n), small) for n in d.get("notes", [])[:3]]
+            S.append(KeepTogether([Spacer(1, 3 * mm), head, Spacer(1, 1 * mm),
+                                   WallElevation(d, el["formes"], doc.width, 70 * mm), *notes]))
+        if elevations_omitted:
+            S.append(Paragraph(_t(f"{elevations_omitted} autre(s) mur(s) : consultables dans l'application."),
+                               small))
 
     if quote is not None:
         block: list = [Paragraph("Chiffrage estimatif (EUR et FCFA)", h2)]

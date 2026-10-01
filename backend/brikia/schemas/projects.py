@@ -13,6 +13,8 @@ class OpeningOut(BaseModel):
     type: str
     largeur_mm: int
     hauteur_mm: int
+    x_mm: int | None = None
+    sill_mm: int | None = None
 
 
 class WallOut(BaseModel):

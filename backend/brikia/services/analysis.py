@@ -56,8 +56,8 @@ def analyse_project(db: Session, settings: Settings, analyzer: PlanAnalyzer,
         for w in geometry.walls:
             wall = Wall(project_id=project.id, nom=w.nom, longueur_mm=w.longueur_mm,
                         hauteur_mm=w.hauteur_mm, is_corner=w.is_corner)
-            wall.openings = [Opening(type=o.type, largeur_mm=o.largeur_mm,
-                                     hauteur_mm=o.hauteur_mm) for o in w.openings]
+            wall.openings = [Opening(type=o.type, largeur_mm=o.largeur_mm, hauteur_mm=o.hauteur_mm,
+                                     x_mm=o.x_mm, sill_mm=o.sill_mm) for o in w.openings]
             db.add(wall)
         db.commit()
     except BaseException:

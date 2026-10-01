@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import math
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ...domain.errors import AnalysisFailed
 from ...domain.geometry import OpeningGeometry, ProjectGeometry, WallGeometry
@@ -241,6 +241,8 @@ class StepPlanAnalyzer:
             return (x - wall.a[0]) * ux + (y - wall.a[1]) * uy, z - wall.z_bottom
 
         outer = BRepTools.OuterWire_s(best_face)
+        outer_s = [local(v)[0] for v in _vertices(outer)]
+        s_origin = min(outer_s) if outer_s else 0.0   # début du mur le long de son axe
         openings: list[OpeningGeometry] = []
         wires = TopExp_Explorer(best_face, TopAbs_WIRE)
         while wires.More():
@@ -251,7 +253,10 @@ class StepPlanAnalyzer:
                 h = max(p[1] for p in pts) - min(p[1] for p in pts)
                 sill = min(p[1] for p in pts)
                 if w >= 100 and h >= 100:
-                    openings.append(OpeningGeometry("porte" if sill < 150 else "fenetre", int(round(w)), int(round(h))))
+                    x0 = min(p[0] for p in pts) - s_origin
+                    openings.append(OpeningGeometry("porte" if sill < 150 else "fenetre", int(round(w)),
+                                                    int(round(h)), int(round(max(0.0, x0))),
+                                                    0 if sill < 150 else int(round(sill))))
             wires.Next()
 
         # Encoches ouvertes en pied (portes) : lacunes entre les arêtes de base du contour extérieur.
@@ -266,7 +271,8 @@ class StepPlanAnalyzer:
             if gap_hi - gap_lo >= opt.min_notch_mm:
                 near = [p[1] for p in outer_pts if gap_lo - 5 <= p[0] <= gap_hi + 5 and 5 < p[1] < wall.height - 5]
                 openings.append(OpeningGeometry("porte", int(round(gap_hi - gap_lo)),
-                                                int(round(max(near) if near else min(opt.door_height_mm, wall.height)))))
+                                                int(round(max(near) if near else min(opt.door_height_mm, wall.height))),
+                                                int(round(max(0.0, gap_lo - s_origin))), 0))
         return openings
 
     # ------------------------------------------------------------------ assemblage
@@ -374,7 +380,8 @@ def _gaps(intervals: list[tuple[float, float]], lo: float, hi: float) -> list[tu
 
 def _cap(openings: list[OpeningGeometry], length: int, height: int) -> list[OpeningGeometry]:
     """Borne les ouvertures au mur et garde un mur exploitable (net > 0)."""
-    fitted = [OpeningGeometry(o.type, min(o.largeur_mm, length), min(o.hauteur_mm, height)) for o in openings]
+    fitted = [replace(o, largeur_mm=min(o.largeur_mm, length), hauteur_mm=min(o.hauteur_mm, height))
+              for o in openings]
     kept = sorted(fitted, key=lambda o: -o.area_mm2)
     while kept and sum(o.area_mm2 for o in kept) > 0.95 * length * height:
         kept.pop(0)

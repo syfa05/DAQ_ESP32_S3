@@ -17,7 +17,8 @@ from ..domain.layout import BrickShapeInput, LayoutResult, WallInput
 from ..domain.geometry import OpeningGeometry, WallGeometry
 from ..models import BrickShape, LayoutRun, Project, Wall, WallAssignment
 from ..schemas.layout import (
-    BomLineOut, BomOut, BomWallQuantity, LayoutOut, ShapeQuantity, WallLayoutOut,
+    BomLineOut, BomOut, BomWallQuantity, LayoutOut, ShapeQuantity, WallCourseShape, WallDetailOut,
+    WallLayoutOut,
 )
 from . import projects
 
@@ -31,7 +32,8 @@ _RUNNABLE = (ProjectStatus.A_OPTIMISER, ProjectStatus.A_VALIDER)
 def _wall_input(w: Wall) -> WallInput:
     return WallInput(w.id, WallGeometry(
         w.nom, w.longueur_mm, w.hauteur_mm, w.is_corner,
-        tuple(OpeningGeometry(o.type, o.largeur_mm, o.hauteur_mm) for o in w.openings)))
+        tuple(OpeningGeometry(o.type, o.largeur_mm, o.hauteur_mm, o.x_mm, o.sill_mm)
+              for o in w.openings)))
 
 
 def _shape_input(s: BrickShape) -> BrickShapeInput:
@@ -82,7 +84,8 @@ def run_layout(db: Session, engine: LayoutEngine, project: Project) -> Project:
         run = LayoutRun(
             project_id=project.id, engine=result.engine, parameters=result.parameters,
             warnings=list(result.warnings),
-            estimated_duration_min=result.estimated_duration_min)
+            estimated_duration_min=result.estimated_duration_min,
+            detail=({str(wl.wall_id): wl.detail for wl in result.walls if wl.detail} or None))
         db.add(run)
         db.flush()
         for wl in result.walls:
@@ -140,6 +143,27 @@ def layout_out(run: LayoutRun) -> LayoutOut:
                                  nom=a.brick_shape.nom, categorie=a.brick_shape.categorie,
                                  quantite=a.quantity) for a in items])
         for wid, items in by_wall.items()]
+    detail = run.detail or {}
+    indicators = ({"pieces_coupees": sum(d.get("coupes", 0) for d in detail.values()),
+                   "chutes_totales_m": round(sum(d.get("chutes_mm", 0) for d in detail.values()) / 1000)}
+                  if detail else {})
     return LayoutOut(id=run.id, moteur=run.engine, created_at=run.created_at,
                      parametres=run.parameters or {}, avertissements=list(run.warnings or []),
-                     murs=murs, bom=build_bom_out(run))
+                     murs=murs, bom=build_bom_out(run), detail_disponible=bool(detail),
+                     indicateurs=indicators)
+
+
+def wall_detail(db: Session, project: Project, wall_id: int) -> WallDetailOut:
+    """Détail assise par assise d'un mur (chargé à la demande : il peut être volumineux)."""
+    run = latest_run(db, project)
+    detail = (run.detail or {}).get(str(wall_id))
+    wall = db.get(Wall, wall_id)
+    if detail is None or wall is None or wall.project_id != project.id:
+        raise NotFound("Aucun détail assise par assise pour ce mur (recalculez le calepinage).")
+    ids = {int(k) for k in detail.get("pose", {})} | {
+        int(run_[1]) for course in detail["courses"] for run_ in course if run_[1]}
+    shapes = db.scalars(select(BrickShape).where(BrickShape.id.in_(ids))).all()
+    return WallDetailOut(
+        wall_id=wall.id, wall_nom=wall.nom, detail=detail,
+        formes=[WallCourseShape(id=s.id, code=s.code, nom=s.nom, categorie=s.categorie,
+                                longueur_mm=s.longueur_mm, hauteur_mm=s.hauteur_mm) for s in shapes])

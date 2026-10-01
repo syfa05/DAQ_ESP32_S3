@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..adapters.layout.base import LayoutEngine
 from ..deps import current_user, get_db, get_layout_engine, require_chef_projet
 from ..models import User
-from ..schemas.layout import BomOut, LayoutOut
+from ..schemas.layout import BomOut, LayoutOut, WallDetailOut
 from ..services import layout as svc
 from ..services import projects as projects_svc
 
@@ -34,3 +34,10 @@ def get_bom(project_id: int, user: User = Depends(current_user),
             db: Session = Depends(get_db)):
     project = projects_svc.get_project(db, user, project_id)
     return svc.build_bom_out(svc.latest_run(db, project))
+
+
+@router.get("/{project_id}/calepinage/murs/{wall_id}", response_model=WallDetailOut)
+def get_wall_detail(project_id: int, wall_id: int, user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    project = projects_svc.get_project(db, user, project_id)
+    return svc.wall_detail(db, project, wall_id)

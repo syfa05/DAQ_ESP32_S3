@@ -445,7 +445,11 @@ def _attach_openings(pieces: list[Piece], doors: list[Seg], windows: list[Seg], 
             used.append((idx, m.s0, m.s1))
             p = pieces[idx]
             width = min(m.length, p.length)
-            pieces[idx].openings.append(OpeningGeometry(kind, int(round(width)), min(height, opt.wall_height_mm)))
+            x_start = max(0.0, min(m.s0 - p.s0, p.length - width))
+            # Un DXF 2D ne contient pas l'allège : portes au sol, fenêtres à 900 mm (valeur par défaut).
+            sill = 0 if kind == "porte" else min(900, max(0, opt.wall_height_mm - height))
+            pieces[idx].openings.append(OpeningGeometry(
+                kind, int(round(width)), min(height, opt.wall_height_mm), int(round(x_start)), sill))
     return {"orphans": orphans}
 
 

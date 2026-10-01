@@ -45,7 +45,9 @@ class BrickShapeInput:
 @dataclass(frozen=True)
 class WallLayout:
     wall_id: int
-    quantities: dict[int, int]  # brick_shape_id -> quantité (> 0 uniquement)
+    quantities: dict[int, int]  # brick_shape_id -> quantité à produire (> 0 uniquement)
+    # Détail assise par assise (moteur « assises ») ; vide pour le moteur à règles.
+    detail: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

@@ -57,6 +57,9 @@ class Settings(BaseSettings):
 
     # Règles de calepinage temporaires : fichier JSON de surcharges (optionnel).
     layout_rules_file: Path | None = None
+    # Moteur de calepinage : « assises » (rang par rang, par défaut) ou « regles » (estimation
+    # par surface et ratios, ancien comportement).
+    layout_engine: Literal["assises", "regles"] = "assises"
 
     # --- Simulateur de production (phase 1, démonstration) -------------
     sim_blocks_per_second: float = Field(default=40.0, gt=0)

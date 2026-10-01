@@ -140,6 +140,8 @@ class Opening(Base):
     type: Mapped[str] = mapped_column(String(30))  # porte, fenetre, ...
     largeur_mm: Mapped[int] = mapped_column(Integer)
     hauteur_mm: Mapped[int] = mapped_column(Integer)
+    x_mm: Mapped[int | None] = mapped_column(Integer)
+    sill_mm: Mapped[int | None] = mapped_column(Integer)
 
     wall: Mapped[Wall] = relationship(back_populates="openings")
 
@@ -185,6 +187,8 @@ class LayoutRun(Base):
     parameters: Mapped[dict] = mapped_column(JSON, default=dict)  # audit
     warnings: Mapped[list] = mapped_column(JSON, default=list)
     estimated_duration_min: Mapped[int | None] = mapped_column(Integer)
+    # Détail assise par assise : {id_mur: {assises, ouvertures, notes, ...}} (moteur « assises »).
+    detail: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     project: Mapped[Project] = relationship(back_populates="layout_runs")

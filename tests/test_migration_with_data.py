@@ -38,7 +38,7 @@ def test_upgrade_keeps_existing_layouts_and_references(settings):
     assert con.execute("SELECT brick_shape_id, quantity FROM wall_assignments").fetchall() == [(1, 100)]
     assert con.execute("SELECT code, poids_g FROM brick_shapes WHERE id = 1").fetchone() == ("BTC_STD", 8550)
     assert con.execute("SELECT count(*) FROM brick_shapes").fetchone()[0] == 23
-    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0005"
+    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0006"
     # La contrainte reste active pour l'application : on ne peut pas supprimer un moule utilisé.
     import pytest
     with pytest.raises(sqlite3.IntegrityError):

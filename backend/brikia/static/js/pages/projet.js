@@ -3,6 +3,7 @@ import { h, replace } from '../lib/dom.js';
 import * as fmt from '../lib/format.js';
 import { orderCard } from '../lib/orderview.js';
 import { PIPELINE, STATUS_LABELS, busy, confirmDialog, openingLabel, showError, sourceBadge, statusBadge, toast } from '../lib/ui.js';
+import { courseSummary, elevation, legend } from '../lib/elevation.js';
 import { wallGrid } from '../lib/wallgrid.js';
 
 const id = Number(document.querySelector('main').dataset.projectId);
@@ -182,20 +183,42 @@ function quoteSection(q) {
         tot('TVA', 'tva'), tot('Total TTC', 'total_ttc', 'quote-total')))));
 }
 
+function wallElevation(body) {
+  const d = body.detail;
+  const rows = courseSummary(body);
+  const openings = d.ouvertures.length ? h('ul', { class: 'small' }, d.ouvertures.map((o) => h('li', {},
+    `${o.type} ${o.largeur} × ${o.hauteur} mm à ${o.x} mm du début, allège ${o.allege} mm — assises ${o.c0 + 1} à ${o.c1}`
+    + (o.position_estimee ? ' (position estimée : plan non lu en détail)' : '')))) : null;
+  return h('div', {},
+    elevation(body), legend(body),
+    h('p', { class: 'small muted' }, `${d.assises} assises de ${d.hauteur_assise_mm} mm · ${d.coupes} pièce(s) coupée(s) · chutes ${fmt.int(d.chutes_mm)} mm`
+      + ' · quantités à produire = pose + marge de casse.'),
+    d.notes.length ? h('div', { class: 'warn' }, h('ul', {}, d.notes.map((n) => h('li', {}, n)))) : null,
+    openings,
+    h('details', {}, h('summary', {}, 'Détail des assises (de haut en bas)'),
+      h('div', { class: 'card table-card' }, h('table', { class: 'course-table' },
+        h('thead', {}, h('tr', {}, ['Assise', 'Cote basse', 'Blocs posés', 'Coupes'].map((t) => h('th', {}, t)))),
+        h('tbody', {}, rows.map((r) => h('tr', {}, h('td', { class: 'num mono' }, String(r.n)),
+          h('td', { class: 'mono' }, `${fmt.int(r.from)} mm`), h('td', { class: 'mono small' }, r.text),
+          h('td', { class: 'small' }, r.cuts.join(' ; ') || '—'))))))));
+}
+
 function layoutSection(project, layout) {
   const bom = layout.bom;
   const produitByCode = Object.fromEntries(bom.lignes.map((l) => [l.code, l.produit]));
   const wallsById = Object.fromEntries(project.walls.map((w) => [w.id, w]));
   return h('section', { 'aria-labelledby': 'h-layout' },
-    h('h2', { id: 'h-layout' }, 'Calepinage IA — proposition'),
+    h('h2', { id: 'h-layout' }, layout.detail_disponible ? 'Calepinage assise par assise' : 'Calepinage — estimation'),
     h('p', { class: 'temp' }, 'Calcul à partir des dimensions des moules de la bibliothèque et de règles temporaires (marges, parts de demi-blocs et de chaînage) à valider avec le fournisseur. Durée = estimation indicative sur les cadences des moules.'),
     layout.avertissements.length ? h('div', { class: 'warn', role: 'alert' }, h('strong', {}, 'Avertissements'),
       h('ul', {}, layout.avertissements.map((a) => h('li', {}, a)))) : null,
     h('h3', {}, 'Nomenclature'),
     bomTable(layout),
     h('p', { class: 'note' }, `Durée de production estimée : ${fmt.duration(bom.duree_estimee_min)} (indicatif, d'après les cadences des moules).`),
-    h('h3', {}, 'Schéma des murs'),
-    h('p', { class: 'note' }, 'Représentation schématique : elle aide à comprendre le calepinage mais n\'est pas un rendu physique exact ni une simulation structurelle. Les quantités font foi.'),
+    h('h3', {}, layout.detail_disponible ? 'Pose assise par assise' : 'Schéma des murs'),
+    h('p', { class: 'note' }, layout.detail_disponible
+      ? 'Chaque bloc est posé rang par rang (joints décalés, ouvertures, linteaux, appuis, chaînages, angles). Ouvrez un mur pour voir son élévation à l\'échelle. Les quantités à produire = pose + marge de casse ; une coupe consomme un bloc entier.'
+      : 'Représentation schématique : elle aide à comprendre le calepinage mais n\'est pas un rendu physique exact ni une simulation structurelle. Les quantités font foi.'),
     wallGridsSection(project, layout, produitByCode, wallsById));
 }
 
@@ -206,11 +229,18 @@ function wallGridsSection(project, layout, produitByCode, wallsById) {
   const items = layout.murs.filter((m) => wallsById[m.wall_id]).map((m) => {
     const wall = wallsById[m.wall_id];
     const body = h('div');
+    const exact = layout.detail_disponible;
     const det = h('details', { class: 'wallgrid', 'data-name': m.wall_nom.toLowerCase() },
       h('summary', {}, h('strong', {}, m.wall_nom),
         h('span', { class: 'muted mono small' }, `${fmt.mm2m(wall.longueur_mm)} × ${fmt.mm2m(wall.hauteur_mm)} m${wall.is_corner ? ' · angle' : ''} · ${fmt.int(m.total)} blocs`)),
       body);
-    const build = () => { if (!body.firstChild) body.append(wallGrid(wall, m, layout.parametres, produitByCode, { bare: true })); };
+    const build = async () => {
+      if (body.firstChild) return;
+      if (!exact) { body.append(wallGrid(wall, m, layout.parametres, produitByCode, { bare: true })); return; }
+      body.append(h('p', { class: 'muted pad' }, 'Chargement…'));
+      try { body.replaceChildren(wallElevation(await get(`/api/projects/${id}/calepinage/murs/${m.wall_id}`))); }
+      catch (e) { body.replaceChildren(h('p', { class: 'form-error' }, e.message)); }
+    };
     det.addEventListener('toggle', () => { if (det.open) build(); });
     if (eager) { det.open = true; build(); }
     return det;

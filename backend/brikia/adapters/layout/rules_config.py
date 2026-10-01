@@ -50,6 +50,19 @@ class LayoutRules:
     production_rate_per_hour: dict[str, Decimal] = field(
         default_factory=lambda: dict(DEMO_RATES_PER_HOUR))
     mold_changeover_min: int = 30
+    # --- Moteur « assises » (calepinage rang par rang) ---
+    # Casse / pertes de manutention ajoutées aux quantités posées (les chutes de coupe sont déjà
+    # comptées : une coupe consomme un bloc entier).
+    breakage_margin: Decimal = Decimal("0.02")
+    # Écartement maximal entre deux chaînages verticaux le long d'un mur (mm).
+    chain_spacing_max_mm: int = 4000
+    # Allège par défaut d'une fenêtre dont la hauteur n'est pas connue (mm).
+    default_window_sill_mm: int = 900
+    # Longueur minimale d'une pièce coupée (mm, ~1/3 de bloc) : en dessous, on répartit sur deux blocs.
+    min_piece_mm: int = 120
+    # Réemploi des chutes : le reste d'un bloc coupé sert à la coupe suivante du même mur
+    # (si assez long) au lieu de consommer un nouveau bloc.
+    reuse_offcuts: bool = True
 
     def to_dict(self) -> dict:
         """Représentation JSON pour l'audit (stockée avec chaque calepinage)."""

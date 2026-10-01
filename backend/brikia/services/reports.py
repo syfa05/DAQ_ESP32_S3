@@ -17,6 +17,9 @@ from ..models import BrickShape, Project, User, Wall
 from ..models.base import utcnow
 from . import layout, pricing
 
+# Au-delà, le rapport reste lisible : les autres murs se consultent dans l'application.
+MAX_ELEVATIONS = 30
+
 STATUS_LABELS = {
     "a_analyser": "À analyser", "a_optimiser": "À optimiser", "a_valider": "À valider",
     "valide": "Validé", "en_production": "En production", "termine": "Terminé",
@@ -79,6 +82,17 @@ def project_report(db: Session, user: User, project: Project, *, with_molds: boo
         if user.role == Role.CHEF_PROJET.value:  # les prix ne sont pas diffusés aux opérateurs
             quote = pricing.quote_for_project(db, project)
 
+    elevations, omitted = [], 0
+    if run is not None and run.detail:
+        names = {w.id: w.nom for w in walls}
+        ordered = [w.id for w in walls if str(w.id) in run.detail]
+        omitted = max(0, len(ordered) - MAX_ELEVATIONS)
+        ids = {int(k) for wid in ordered[:MAX_ELEVATIONS] for k in run.detail[str(wid)]["pose"]}
+        shapes_by_id = {s.id: {"code": s.code, "categorie": s.categorie}
+                        for s in db.scalars(select(BrickShape).where(BrickShape.id.in_(ids)))}
+        for wid in ordered[:MAX_ELEVATIONS]:
+            elevations.append({"nom": names[wid], "detail": run.detail[str(wid)], "formes": shapes_by_id})
+
     return build_report(
         project={"nom": project.nom, "ville": project.ville, "architecte": project.architecte,
                  "statut": STATUS_LABELS.get(project.status, project.status),
@@ -86,4 +100,5 @@ def project_report(db: Session, user: User, project: Project, *, with_molds: boo
                  "plan": project.plan_original_name, "analyse_source": project.analysis_source,
                  "analyse_notes": project.analysis_notes},
         walls=wall_rows, bom=bom, quote=quote, mold_sheets=sheets,
+        elevations=elevations, elevations_omitted=omitted,
         generated_by=f"{user.nom} ({user.login})", generated_at=utcnow(), version=__version__)

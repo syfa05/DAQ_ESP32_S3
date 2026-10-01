@@ -23,6 +23,10 @@ class OpeningGeometry:
     type: str
     largeur_mm: int
     hauteur_mm: int
+    # Position le long du mur (depuis son origine) et hauteur d'allège (bas de l'ouverture).
+    # None = inconnu (ex. analyse simulée, PDF) : le calepinage place alors l'ouverture lui-même.
+    x_mm: int | None = None
+    sill_mm: int | None = None
 
     @property
     def area_mm2(self) -> int:

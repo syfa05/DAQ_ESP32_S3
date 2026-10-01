@@ -13,6 +13,7 @@ from .api import audit as audit_api
 from .api import users as users_api
 from .api import documents as documents_api
 from .api import auth as auth_api
+from .adapters.layout.courses import CourseLayoutEngine
 from .adapters.layout.rule_based import DefaultRuleBasedLayoutEngine
 from .adapters.layout.rules_config import LayoutRules
 from .api import layout as layout_api
@@ -46,7 +47,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.plan_analyzer = build_plan_analyzer(settings)
     rules = (LayoutRules.from_file(settings.layout_rules_file)
              if settings.layout_rules_file else LayoutRules())
-    app.state.layout_engine = DefaultRuleBasedLayoutEngine(rules)
+    app.state.layout_engine = (DefaultRuleBasedLayoutEngine(rules) if settings.layout_engine == "regles"
+                               else CourseLayoutEngine(rules))
     # Phase 3 : RaspberryPiProductionGateway remplacera le simulateur ici.
     app.state.production_gateway = SimulatedProductionGateway(
         settings.sim_blocks_per_second, settings.sim_fault_at_percent)

@@ -20,13 +20,15 @@ Menu **Moules** : chaque moule a un code, une catégorie, des **dimensions** (L 
 **Valeurs de départ ESTIMATIVES** choisies par BrikIA (poids = volume × masse volumique approximative : BTC ≈ 1 900 kg/m³,
 parpaing creux ≈ 1 100 kg/m³ apparent ; coûts de revient en EUR par bloc). À remplacer par vos valeurs réelles.
 
-### Ce qui est calculé automatiquement, et ce qui ne l'est pas
+### Ce qui est posé automatiquement, et ce qui ne l'est pas
+*(Voir `docs/calepinage-assises.md` : le calepinage pose maintenant les blocs rang par rang. Le texte ci-dessous décrit l'ancien moteur « regles », encore disponible.)*
+
 Le calepinage lit **les dimensions des moules** (face du bloc, hauteur d'assise, longueurs de linteau et d'appui) et prélève sur le
 total d'un mur : angle (une pile par assise, mur d'angle), linteaux, **appuis de fenêtre** (fenêtres et vitrines, si un moule d'appui existe),
 chaînage vertical, **demi-blocs** (si un moule demi existe ; sinon simple indicateur) et blocs standard. Les moules d'un autre produit que
 le moule standard ne sont jamais mélangés pour demi/appui.
 
-Les types **creux, ¾, angle 135°, T, chaînage horizontal, pignon, acrotère** sont en bibliothèque (poids, plans, coûts, production) mais
+Avec le moteur « assises », **¾ et chaînage horizontal (ceinture)** sont aussi posés. Les types **creux, angle 135°, T, pignon, acrotère** sont en bibliothèque (poids, plans, coûts, production) mais
 **n'ont pas de quantité automatique** : le moteur ne sait pas encore où les placer sur un plan. Ils s'affichent « saisie manuelle ».
 Les ratios (5 % de chutes, 10 % de chaînage, 6 % de demi-blocs) restent des règles temporaires à valider.
 

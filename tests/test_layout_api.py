@@ -8,6 +8,13 @@ from brikia.db import init_db, session_scope
 from brikia.main import create_app
 from brikia.models import BrickShape, LayoutRun, Project, WallAssignment
 
+@pytest.fixture(autouse=True)
+def _rules_engine(monkeypatch):
+    """Ces tests vérifient le moteur « regles » (estimation par surface) ; le moteur « assises »
+    a ses propres tests (test_courses.py)."""
+    monkeypatch.setenv("BRIKIA_LAYOUT_ENGINE", "regles")
+
+
 F3 = b"f3-2"  # SHA-256 -> scénario « Maison type F3 » (6 murs)
 
 

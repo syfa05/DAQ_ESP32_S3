@@ -233,8 +233,16 @@ class IfcPlanAnalyzer:
                 continue
             if clamped:
                 stats["ouvertures_ajustees"] += 1
+            # position le long du segment (depuis son origine) et allège (bas du trou)
+            origin = segment.a[0] * ux + segment.a[1] * uy
+            x_start = min(along) - origin
+            sill = float(verts[:, 2].min()) * 1000.0 - info.elevation
+            sill = 0 if sill < 150 else sill
+            x_start = max(0.0, min(x_start, segment.length - width))
+            sill = max(0.0, min(sill, info.height_mm - height))
             segment.openings.append(OpeningGeometry(_opening_type(opening), int(round(width)),
-                                                    int(round(height))))
+                                                    int(round(height)), int(round(x_start)),
+                                                    int(round(sill))))
             stats["ouvertures"] += 1
 
     # ------------------------------------------------------------------ assemblage

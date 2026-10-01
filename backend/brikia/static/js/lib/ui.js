@@ -20,8 +20,8 @@ export const CATEGORY_LABELS = {
   chainage_h: 'Chaînage horizontal (U)', linteau: 'Linteau', appui: 'Appui de fenêtre',
   pignon: 'Pignon (rampant)', acrotere: 'Acrotère', special: 'Spécial',
 };
-// Types pris en compte par le calcul automatique du calepinage (les autres : saisie manuelle).
-export const AUTO_CATEGORIES = new Set(['standard', 'angle', 'chainage', 'linteau', 'demi', 'appui']);
+// Types posés par le calepinage assise par assise (les autres : saisie manuelle).
+export const AUTO_CATEGORIES = new Set(['standard', 'angle', 'chainage', 'chainage_h', 'linteau', 'demi', 'trois_quarts', 'appui']);
 
 export const statusBadge = (status) =>
   h('span', { class: `badge st-${status}` }, STATUS_LABELS[status] || status);

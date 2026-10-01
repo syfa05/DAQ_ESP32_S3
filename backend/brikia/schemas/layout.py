@@ -53,3 +53,22 @@ class LayoutOut(BaseModel):
     avertissements: list[str]
     murs: list[WallLayoutOut]
     bom: BomOut
+    # Moteur « assises » : détail rang par rang disponible, et indicateurs globaux.
+    detail_disponible: bool = False
+    indicateurs: dict = {}
+
+
+class WallCourseShape(BaseModel):
+    id: int
+    code: str
+    nom: str
+    categorie: str
+    longueur_mm: int | None
+    hauteur_mm: int | None
+
+
+class WallDetailOut(BaseModel):
+    wall_id: int
+    wall_nom: str
+    formes: list[WallCourseShape]
+    detail: dict

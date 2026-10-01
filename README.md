@@ -176,3 +176,4 @@ Polices Oswald, Inter et IBM Plex Mono (SIL Open Font License 1.1), embarquées 
 * Fichier d'installation double-clic `BrikIA-Setup.exe` (Python embarqué, hors ligne) : voir `docs/installation-windows.md`.
 * Création et gestion des comptes (page **Utilisateurs**, mot de passe, désactivation, première configuration) : voir `docs/utilisateurs.md`.
 * Bibliothèque de moules étendue, chiffrage EUR/FCFA, rapport PDF et plans 2D/3D des moules : voir `docs/moules-et-chiffrage.md`.
+* Calepinage assise par assise (pose réelle, élévations, PDF) : voir `docs/calepinage-assises.md`.
