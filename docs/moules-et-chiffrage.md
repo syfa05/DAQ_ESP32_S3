@@ -1,6 +1,8 @@
 # Moules, chiffrage EUR/FCFA, rapport PDF et plans
 
-## Bibliothèque de moules (23 types fournis, tous modifiables)
+## Bibliothèque de moules (71 moules fournis, tous modifiables)
+*Les 23 moules ci-dessous sont les gammes de base (BTC 150 mm, parpaing 200 mm). Six gammes dérivées s'y ajoutent (BTC 100/200/300, parpaing 100/150/300) : voir `docs/calepinage-assises.md`, section « Épaisseurs et gammes de moules ».*
+
 Menu **Moules** : chaque moule a un code, une catégorie, des **dimensions** (L × l × h en mm), un **poids**, une **cadence**
 (blocs/heure) et un **coût de revient estimé**. Tout se modifie à tout moment (bouton *Modifier*) et on peut créer d'autres moules.
 

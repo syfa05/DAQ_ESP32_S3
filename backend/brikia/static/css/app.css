@@ -244,3 +244,9 @@ details.wallgrid .legend { margin-top: .5rem; }
 .wall-editor .table-card input, .wall-editor .table-card select { min-width: 5.5rem; }
 .wall-editor h3 { margin: 1rem 0 .2rem; font-size: 1rem; }
 .wall-editor select { min-width: 7.5rem; }
+
+/* Gammes de moules */
+.gamme-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .8rem; }
+.chip { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: .25rem .8rem; font-size: .8rem; cursor: pointer; }
+.chip.on { background: var(--ocre); color: #1d1a14; border-color: var(--ocre); }
+.chip.warn { border-style: dashed; border-color: var(--danger); }

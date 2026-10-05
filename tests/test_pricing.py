@@ -154,7 +154,7 @@ def test_mold_cost_visible_to_chef_only_and_audited(chef, oper, session):
 def test_all_library_molds_have_a_valid_plan(chef):
     c, _ = chef
     shapes = c.get("/api/moulds").json()
-    assert len(shapes) == 23
+    assert len(shapes) == 71
     for s in shapes:
         r = c.get(f"/api/moulds/{s['id']}/plan.svg")
         assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml"), s["code"]

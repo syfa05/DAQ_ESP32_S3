@@ -63,6 +63,10 @@ class LayoutRules:
     # Réemploi des chutes : le reste d'un bloc coupé sert à la coupe suivante du même mur
     # (si assez long) au lieu de consommer un nouveau bloc.
     reuse_offcuts: bool = True
+    # Choix de la gamme de moules selon l'épaisseur du mur : écart toléré (mm) entre l'épaisseur
+    # du mur et la largeur de la gamme retenue ; au-delà, la gamme la plus proche est utilisée
+    # AVEC avertissement.
+    thickness_tolerance_mm: int = 40
 
     def to_dict(self) -> dict:
         """Représentation JSON pour l'audit (stockée avec chaque calepinage)."""

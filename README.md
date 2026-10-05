@@ -178,3 +178,4 @@ Polices Oswald, Inter et IBM Plex Mono (SIL Open Font License 1.1), embarquées 
 * Bibliothèque de moules étendue, chiffrage EUR/FCFA, rapport PDF et plans 2D/3D des moules : voir `docs/moules-et-chiffrage.md`.
 * Calepinage assise par assise (pose réelle, élévations, PDF) : voir `docs/calepinage-assises.md`.
 * Correction manuelle des murs et ouvertures, angles et jonctions en T par extrémité : voir `docs/calepinage-assises.md`.
+* Épaisseurs de murs et gammes de moules (choix automatique ou imposé par mur) : voir `docs/calepinage-assises.md`.

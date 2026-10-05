@@ -28,7 +28,7 @@ def test_upgrade_from_0004_keeps_custom_values_and_adds_library(settings):
     assert rows["BTC_STD"][4] == 8550 and rows["BTC_STD"][5] == "0.30"  # poids/coût ajoutés
     assert "BTC_TE" in rows and "PARP_ACROTERE" in rows
     assert rows["PARP_ANGLE"][1] == 400  # ré-ajouté par la bibliothèque étendue (plus de doublon)
-    assert len(rows) == 23
+    assert len(rows) == 71  # 23 de 0005 + 48 des gammes de 0008
     assert con.execute("SELECT taux_fcfa_par_eur, marge_pct, tva_pct FROM pricing_settings").fetchone() == (
         "655.957", "20", "18")
     con.close()

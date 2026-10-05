@@ -112,7 +112,7 @@ def test_scenarios_are_varied_and_molds_untouched(seeded):
     with session_scope() as s:
         counts = {len(p.walls) for p in s.query(Project) if p.walls}
         assert counts == {6, 4, 3}  # F3, local commercial, clôture
-        assert s.query(BrickShape).count() == 23
+        assert s.query(BrickShape).count() == 71
 
 
 def test_each_role_sees_the_right_projects_through_the_ui_api(seed_app, seeded):

@@ -46,6 +46,8 @@ class WallGeometry:
     end_kind: str | None = None
     junctions_mm: tuple[int, ...] = ()
     thickness_mm: int | None = None
+    # Gamme de moules imposée (« produit|largeur ») ; None = choix automatique selon l'épaisseur.
+    gamme: str | None = None
 
     @property
     def gross_area_mm2(self) -> int:

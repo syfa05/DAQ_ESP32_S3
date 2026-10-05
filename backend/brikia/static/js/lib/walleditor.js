@@ -1,5 +1,5 @@
 // Éditeur de mur : corrige l'analyse (dimensions, extrémités, jonctions, ouvertures).
-import { del, post, put } from './api.js';
+import { del, get, post, put } from './api.js';
 import { h } from './dom.js';
 import { busy, confirmDialog, showError, toast } from './ui.js';
 
@@ -17,7 +17,11 @@ const select = (label, name, options, value) => h('div', {}, h('label', { for: `
     h('option', { value: v, selected: v === (value ?? '') }, l))));
 const num = (v) => (v === '' || v == null ? null : Number(v));
 
-export function openWallEditor({ projectId, wall, status, onDone }) {
+export async function openWallEditor({ projectId, wall, status, onDone }) {
+  let gammes = [];
+  try { gammes = await get('/api/moulds/gammes'); } catch { /* la liste reste vide : choix automatique seul */ }
+  const GAMMES = { '': 'Automatique (selon l\'épaisseur)' };
+  for (const g of gammes) GAMMES[g.cle] = `${g.produit} ${g.largeur_mm ?? '?'} mm${g.complete ? '' : ' (incomplète)'}`;
   const w = wall || { nom: '', longueur_mm: '', hauteur_mm: 2700, openings: [], junctions_mm: [] };
   const error = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const rows = [];
@@ -49,6 +53,8 @@ export function openWallEditor({ projectId, wall, status, onDone }) {
     h('div', { class: 'two-cols' },
       select('Extrémité du début', 'start_kind', END_LABELS, w.start_kind),
       select('Extrémité de fin', 'end_kind', END_LABELS, w.end_kind)),
+    select('Gamme de moules', 'gamme', GAMMES, w.gamme),
+    h('p', { class: 'note' }, 'Automatique : la gamme dont la largeur est la plus proche de l\'épaisseur du mur (écart toléré 40 mm, sinon avertissement). Imposer une gamme force tous les moules de ce mur.'),
     h('p', { class: 'note' }, 'Un angle n\'a qu\'un propriétaire : choisissez « Angle » sur un seul des deux murs qui se rejoignent, « en butée » sur l\'autre. « Non précisé » : l\'ancien comportement (mur d\'angle = une pile au début).'),
     h('div', { class: 'two-cols' },
       field('Jonctions en T sur ce mur (mm depuis le début, séparées par des virgules)', 'junctions', (w.junctions_mm || []).join(', '), { placeholder: 'ex. 3000, 5200' }),
@@ -79,7 +85,7 @@ export function openWallEditor({ projectId, wall, status, onDone }) {
     const kinds = { start_kind: el.start_kind.value || null, end_kind: el.end_kind.value || null };
     return {
       nom: el.nom.value.trim(), longueur_mm: num(el.longueur_mm.value), hauteur_mm: num(el.hauteur_mm.value),
-      thickness_mm: num(el.thickness_mm.value), ...kinds,
+      thickness_mm: num(el.thickness_mm.value), gamme: el.gamme.value || null, ...kinds,
       is_corner: el.is_corner.checked,
       junctions_mm: el.junctions.value.split(/[;,\s]+/).filter(Boolean).map(Number),
       openings: rows.map((r) => ({ type: r.type.value, largeur_mm: num(r.l.value), hauteur_mm: num(r.hh.value),

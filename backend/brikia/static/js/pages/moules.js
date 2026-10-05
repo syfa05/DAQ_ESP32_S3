@@ -5,6 +5,9 @@ import { AUTO_CATEGORIES, CATEGORY_LABELS, busy, confirmDialog, showError, toast
 const isChef = document.body.dataset.role === 'chef_projet';
 const box = document.getElementById('molds');
 let shapes = [];
+let gammes = [];
+let filter = '';
+const keyOf = (s) => `${s.produit}|${s.largeur_mm ?? ''}`;
 
 const dims = (s) => [s.longueur_mm, s.largeur_mm, s.hauteur_mm].every((v) => v == null) ? '—'
   : [s.longueur_mm, s.largeur_mm, s.hauteur_mm].map((v) => v ?? '?').join(' × ') + ' mm';
@@ -13,7 +16,20 @@ const money = (v) => (v == null ? '—' : `${Number(v).toLocaleString('fr-FR', {
 const weight = (g) => (g == null ? '—' : `${(g / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} kg`);
 
 async function reload() {
-  try { shapes = await get('/api/moulds'); draw(); } catch (e) { showError(e); }
+  try { [shapes, gammes] = await Promise.all([get('/api/moulds'), get('/api/moulds/gammes')]); drawChips(); draw(); }
+  catch (e) { showError(e); }
+}
+
+function drawChips() {
+  const box = document.getElementById('gammes');
+  const chip = (key, label, title, cls = '') => {
+    const b = h('button', { type: 'button', class: `chip ${cls}${filter === key ? ' on' : ''}`, title }, label);
+    b.addEventListener('click', () => { filter = key; drawChips(); draw(); });
+    return b;
+  };
+  replace(box, chip('', `Toutes (${shapes.length})`, 'Afficher tous les moules'),
+    ...gammes.map((g) => chip(g.cle, `${g.produit.split(' ')[0]} ${g.largeur_mm ?? '?'} mm · ${g.nb_disponibles}`,
+      g.complete ? 'Gamme complète' : `Fonctions absentes : ${g.manque.join(', ')}`, g.complete ? '' : 'warn')));
 }
 
 function draw() {
@@ -22,7 +38,7 @@ function draw() {
   head.push('Disponibilité', isChef ? 'Actions' : 'Plan');
   replace(box, h('table', {},
     h('thead', {}, h('tr', {}, head.map((t) => h('th', {}, t)))),
-    h('tbody', {}, shapes.map(row))));
+    h('tbody', {}, shapes.filter((s) => !filter || keyOf(s) === filter).map(row))));
 }
 
 function row(s) {

@@ -38,7 +38,7 @@ def test_stale_tmp_table_from_interrupted_run_is_cleaned(settings):
     names = _tables(settings.db_path)
     assert "_alembic_tmp_brick_shapes" not in names and "pricing_settings" in names
     con = sqlite3.connect(settings.db_path)
-    assert con.execute("SELECT count(*) FROM brick_shapes").fetchone()[0] == 23
+    assert con.execute("SELECT count(*) FROM brick_shapes").fetchone()[0] == 71
     con.close()
 
 
@@ -65,7 +65,7 @@ def test_migration_is_idempotent_when_partly_applied(settings):
     con.close()
     upgrade(settings)
     con = sqlite3.connect(settings.db_path)
-    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0007"
+    assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0008"
     assert con.execute("SELECT count(*) FROM pricing_settings").fetchone()[0] == 1
     con.close()
     upgrade(settings)  # rejouable sans effet

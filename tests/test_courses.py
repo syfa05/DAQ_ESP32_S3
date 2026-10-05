@@ -301,3 +301,118 @@ def test_legacy_corner_flag_still_places_one_pile_at_the_start():
     r = ENGINE.calculate([wall(l=3000, h=200, corner=True)], lib(*NO_OPT))
     c0 = expand(course(r, 0))
     assert c0[0][1] == ANG and sum(1 for p in c0 if p[1] == ANG) == 1
+
+
+# --- Gammes de moules selon l'épaisseur -----------------------------------------------------------
+PARP = "Parpaing autobloquant"
+
+
+def lib_families():
+    """BTC 100 (L300), BTC 150 (L300), BTC 200 (L400), parpaing 200 (L400, h200) : codes comme la migration."""
+    out, i = [], 100
+
+    def fam(prefix, produit, width, length, height, suffix=""):
+        nonlocal i
+        rows = [("STD", C.STANDARD, length), ("ANGLE", C.ANGLE, length), ("CHAINAGE", C.CHAINAGE, length),
+                ("LINTEAU", C.LINTEAU, length * 3 // 2), ("DEMI", C.DEMI, length // 2)]
+        for name, cat, ln in rows:
+            i += 1
+            out.append(S(i, f"{prefix}_{name}{suffix}", f"{prefix} {name} {width}", produit, cat, True,
+                         ln, width, height))
+
+    fam("BTC", BTC, 150, 300, 100)
+    fam("BTC", BTC, 100, 300, 100, "_100")
+    fam("BTC", BTC, 200, 400, 100, "_200")
+    fam("PARP", PARP, 200, 400, 200)
+    return out
+
+
+def thick(l=4000, h=300, t=None, gamme=None, corner=False, id_=1):
+    return WallInput(id_, W(f"M{id_}", l, h, corner, (), None, None, (), t, gamme))
+
+
+def codes_used(result, i=0):
+    by_id = {s.id: s.code for s in lib_families()}
+    return {by_id[k] for k in result.walls[i].quantities}
+
+
+def test_thickness_selects_the_matching_family_and_stays_inside_it():
+    shapes = lib_families()
+    for t, expected_suffix in ((100, "_100"), (150, ""), (200, "_200")):
+        r = ENGINE.calculate([thick(t=t)], shapes)
+        assert all(c.endswith(expected_suffix) and (expected_suffix or c.count("_") == 1)
+                   for c in codes_used(r)), (t, codes_used(r))
+        assert r.warnings == ()
+        assert r.walls[0].detail["epaisseur_mm"] == t
+
+
+def test_family_dimensions_drive_the_course_pattern_by_hand():
+    # 4000 mm, BTC 200 (blocs de 400) : chaînage 400 | 8 blocs | chaînage 400 sur une assise paire
+    r = ENGINE.calculate([thick(t=200, h=100)], lib_families())
+    runs = course(r, 0)
+    assert [(x, plen, n) for x, _, plen, n, _ in runs] == [(0, 400, 1), (400, 400, 8), (3600, 400, 1)]
+    by_id = {s.id: s.code for s in lib_families()}
+    assert [by_id[shape] for _, shape, _, _, _ in runs] == ["BTC_CHAINAGE_200", "BTC_STD_200", "BTC_CHAINAGE_200"]
+    assert r.walls[0].detail["gamme"] == "BTC autobloquante 200 mm"
+
+
+def test_unknown_thickness_uses_the_default_family_and_closest_wins_with_tolerance():
+    shapes = lib_families()
+    assert ENGINE.calculate([thick(t=None)], shapes).walls[0].detail["gamme_origine"] == "defaut"
+    r70 = ENGINE.calculate([thick(t=70)], shapes)                    # écart 30 <= 40 : pas d'avertissement
+    assert r70.warnings == () and "100 mm" in r70.walls[0].detail["gamme"]
+    r340 = ENGINE.calculate([thick(t=340)], shapes)                  # écart 140 : gamme 200 AVEC avertissement
+    assert any("aucune gamme" in w and "340" in w for w in r340.warnings)
+    assert "200 mm" in r340.walls[0].detail["gamme"]
+
+
+def test_ties_prefer_the_preferred_product_then_the_smaller_width():
+    shapes = lib_families()
+    # 200 mm : BTC 200 et parpaing 200 à égalité -> produit préféré (BTC)
+    assert ENGINE.calculate([thick(t=200)], shapes).walls[0].detail["gamme"].startswith("BTC")
+    # 175 mm : 150 et 200 à égalité -> la plus étroite (ordre alphabétique de la clé)
+    assert "150 mm" in ENGINE.calculate([thick(t=175)], shapes).walls[0].detail["gamme"]
+
+
+def test_forced_family_wins_over_thickness_and_unavailable_one_falls_back_with_a_warning():
+    shapes = lib_families()
+    r = ENGINE.calculate([thick(t=200, gamme="BTC autobloquante|100")], shapes)
+    d = r.walls[0].detail
+    assert d["gamme_origine"] == "manuelle" and "100 mm" in d["gamme"]
+    assert all(c.endswith("_100") for c in codes_used(r))
+    r2 = ENGINE.calculate([thick(t=200, gamme="BTC autobloquante|999")], shapes)
+    assert any("indisponible" in w for w in r2.warnings) and r2.walls[0].detail["gamme_origine"] == "epaisseur"
+
+
+def test_disabled_family_is_not_selected():
+    shapes = [S(s.id, s.code, s.nom, s.produit, s.categorie, not s.code.endswith("_200"), s.longueur_mm,
+                s.largeur_mm, s.hauteur_mm) for s in lib_families()]
+    r = ENGINE.calculate([thick(t=200)], shapes)           # BTC 200 désactivée : parpaing 200 (même écart)
+    assert r.walls[0].detail["gamme"].startswith("Parpaing")
+
+
+def test_family_without_angle_mold_falls_back_to_its_own_standard_with_a_warning():
+    shapes = [s for s in lib_families() if s.code != "BTC_ANGLE_200"]
+    r = ENGINE.calculate([thick(t=200, corner=True, h=200)], shapes)
+    assert any("BTC autobloquante 200 mm" in w and "angle" in w for w in r.warnings)
+    assert all(c.endswith("_200") for c in codes_used(r))      # jamais un moule d'une autre largeur
+
+
+def test_walls_of_different_thickness_use_their_own_families_in_the_same_calculation():
+    r = ENGINE.calculate([thick(t=100, id_=1), thick(t=200, id_=2)], lib_families())
+    assert codes_used(r, 0).isdisjoint(codes_used(r, 1))
+    assert r.parameters["gammes_utilisees"] == ["BTC autobloquante 100 mm", "BTC autobloquante 200 mm"]
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_fuzz_with_families_tiles_exactly_and_never_mixes_widths(seed):
+    rnd = random.Random(1000 + seed)
+    t = rnd.choice([None, 50, 70, 100, 120, 150, 180, 200, 260, 340])
+    length, height = rnd.randrange(900, 12000, 10), rnd.randrange(300, 3000, 10)
+    w = thick(l=length, h=height, t=t, corner=rnd.random() < 0.5)
+    r = ENGINE.calculate([w], lib_families())
+    d = r.walls[0].detail
+    widths = {s.largeur_mm for s in lib_families() if s.code in codes_used(r)}
+    assert len(widths) == 1                                         # une seule largeur par mur
+    for runs in d["courses"]:
+        assert sum(plen * n for _, _, plen, n, _ in runs) == length

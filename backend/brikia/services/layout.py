@@ -34,7 +34,7 @@ def _wall_input(w: Wall) -> WallInput:
         w.nom, w.longueur_mm, w.hauteur_mm, w.is_corner,
         tuple(OpeningGeometry(o.type, o.largeur_mm, o.hauteur_mm, o.x_mm, o.sill_mm)
               for o in w.openings),
-        w.start_kind, w.end_kind, tuple(w.junctions_mm or ()), w.thickness_mm))
+        w.start_kind, w.end_kind, tuple(w.junctions_mm or ()), w.thickness_mm, w.gamme))
 
 
 def _shape_input(s: BrickShape) -> BrickShapeInput:

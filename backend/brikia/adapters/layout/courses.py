@@ -56,44 +56,78 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
         super().__init__(rules)
 
     # -- moules ---------------------------------------------------------------------------------
-    def _pick(self, shapes: Sequence[BrickShapeInput], cat: Cat, product: str | None
-              ) -> BrickShapeInput | None:
-        cands = self._candidates(shapes, cat)
-        same = [s for s in cands if s.produit == product]
-        return (same or cands or [None])[0] if product else (cands or [None])[0]
+    # -- gammes de moules (produit + largeur = épaisseur de mur) -----------------------------
+    @staticmethod
+    def family_key(produit: str, largeur: int | None) -> str:
+        return f"{produit}|{largeur if largeur is not None else ''}"
 
-    def _molds(self, shapes: Sequence[BrickShapeInput], warnings: list[str]) -> dict:
-        std = self._pick(shapes, Cat.STANDARD, None)
-        if std is None:
-            raise LayoutImpossible(
-                "Calepinage impossible : aucun moule standard n'est disponible. "
-                "Activez un moule standard dans la bibliothèque.")
+    @staticmethod
+    def family_label(key: str) -> str:
+        produit, _, largeur = key.partition("|")
+        return f"{produit} {largeur} mm" if largeur else produit
+
+    def _families(self, shapes: Sequence[BrickShapeInput]) -> dict[str, list[BrickShapeInput]]:
+        fam: dict[str, list[BrickShapeInput]] = {}
+        for s in shapes:
+            if s.disponible:
+                fam.setdefault(self.family_key(s.produit, s.largeur_mm), []).append(s)
+        return fam
+
+    def _pick(self, members: Sequence[BrickShapeInput], cat: Cat) -> BrickShapeInput | None:
+        return next(iter(sorted((s for s in members if s.categorie == cat), key=lambda s: s.code)), None)
+
+    def _family_molds(self, key: str, members: Sequence[BrickShapeInput], warnings: list[str]) -> dict:
+        std = self._pick(members, Cat.STANDARD)
         r = self.rules
         ls = std.longueur_mm or r.block_length_mm
-        molds: dict = {"std": std, "L_std": ls, "H": std.hauteur_mm or r.block_height_mm}
+        molds: dict = {"key": key, "label": self.family_label(key), "std": std, "L_std": ls,
+                       "H": std.hauteur_mm or r.block_height_mm}
+        label = molds["label"]
 
-        def opt(cat: Cat, label: str, required: bool = False):
-            s = self._pick(shapes, cat, std.produit)
-            if s is not None and s.produit != std.produit:
-                warnings.append(f"Moule « {label} » : aucun moule {std.produit} disponible, "
-                                f"« {s.nom} » ({s.produit}) est utilisé à la place.")
-            if s is None and required:
-                warnings.append(f"Aucun moule « {label} » disponible : « {std.nom} » est utilisé à la place.")
+        def required(cat: Cat, name: str):
+            s = self._pick(members, cat)
+            if s is None:
+                warnings.append(f"Gamme « {label} » : aucun moule « {name} » disponible, "
+                                f"« {std.nom} » est utilisé à la place.")
                 return std
             return s
 
-        molds["demi"] = self._pick(shapes, Cat.DEMI, std.produit)
-        molds["tq"] = self._pick(shapes, Cat.TROIS_QUARTS, std.produit)
-        molds["angle"] = opt(Cat.ANGLE, "angle", required=True)
-        molds["chain"] = self._pick(shapes, Cat.CHAINAGE, std.produit)
-        molds["chain_h"] = self._pick(shapes, Cat.CHAINAGE_H, std.produit)
-        molds["linteau"] = opt(Cat.LINTEAU, "linteau", required=True)
-        molds["appui"] = self._pick(shapes, Cat.APPUI, std.produit)
-        for key in ("demi", "tq", "angle", "chain", "chain_h", "linteau", "appui"):
-            m = molds[key]
-            default = {"demi": ls // 2, "tq": ls * 3 // 4}.get(key, ls)
-            molds["L_" + key] = (m.longueur_mm if m is not None and m.longueur_mm else default)
+        molds["demi"] = self._pick(members, Cat.DEMI)
+        molds["tq"] = self._pick(members, Cat.TROIS_QUARTS)
+        molds["angle"] = required(Cat.ANGLE, "angle")
+        molds["chain"] = self._pick(members, Cat.CHAINAGE)
+        molds["chain_h"] = self._pick(members, Cat.CHAINAGE_H)
+        molds["linteau"] = required(Cat.LINTEAU, "linteau")
+        molds["appui"] = self._pick(members, Cat.APPUI)
+        for k in ("demi", "tq", "angle", "chain", "chain_h", "linteau", "appui"):
+            m = molds[k]
+            default = {"demi": ls // 2, "tq": ls * 3 // 4}.get(k, ls)
+            molds["L_" + k] = m.longueur_mm if m is not None and m.longueur_mm else default
         return molds
+
+    def _select_family(self, g, std_keys: list[str], default_key: str, warnings: list[str]
+                       ) -> tuple[str, str]:
+        """Gamme d'un mur : imposée, sinon la plus proche de son épaisseur. -> (clé, origine)."""
+        if g.gamme:
+            if g.gamme in std_keys:
+                return g.gamme, "manuelle"
+            warnings.append(f"Mur « {g.nom} » : gamme imposée « {self.family_label(g.gamme)} » indisponible "
+                            "(moule standard absent ou désactivé) : choix automatique.")
+        widths = [(k, int(k.partition("|")[2])) for k in std_keys if k.partition("|")[2]]
+        if g.thickness_mm is None or not widths:
+            return default_key, "defaut"
+        pref = self.rules.product_preference
+
+        def rank(item: tuple[str, int]) -> tuple[int, int, str]:
+            produit = item[0].partition("|")[0]
+            return (abs(item[1] - g.thickness_mm), pref.index(produit) if produit in pref else len(pref), item[0])
+
+        key, width = min(widths, key=rank)
+        if abs(width - g.thickness_mm) > self.rules.thickness_tolerance_mm:
+            warnings.append(f"Mur « {g.nom} » : épaisseur {g.thickness_mm} mm, aucune gamme de moules à "
+                            f"moins de {self.rules.thickness_tolerance_mm} mm ; « {self.family_label(key)} » "
+                            f"est utilisée (écart {abs(width - g.thickness_mm)} mm).")
+        return key, "epaisseur"
 
     # -- remplissage d'un tronçon libre -------------------------------------------------------
     def _fill(self, a: int, b: int, course: int, m: dict, mold_key: str = "std") -> list[_Piece]:
@@ -354,6 +388,8 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
             "courses": [_encode(pieces) for pieces in courses],
             "pose": {str(k): v for k, v in sorted(exact.items())},
             "coupes": cuts, "reemploi": reused, "chutes_mm": waste, "notes": notes,
+            "gamme": m["label"], "gamme_cle": m["key"], "gamme_origine": m.get("origine", "defaut"),
+            "epaisseur_mm": g.thickness_mm,
         }
         return exact, detail
 
@@ -361,13 +397,35 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
     def calculate(self, walls: Sequence[WallInput],
                   brick_shapes: Sequence[BrickShapeInput]) -> LayoutResult:
         warnings: list[str] = []
-        m = self._molds(brick_shapes, warnings)
-        m["by_id"] = {s.id: s for s in brick_shapes}
+        families = self._families(brick_shapes)
+        std_keys = [k for k, members in families.items()
+                    if any(s.categorie == Cat.STANDARD for s in members)]
+        default = next(iter(self._candidates(brick_shapes, Cat.STANDARD)), None)
+        if default is None:
+            raise LayoutImpossible(
+                "Calepinage impossible : aucun moule standard n'est disponible. "
+                "Activez un moule standard dans la bibliothèque.")
+        default_key = self.family_key(default.produit, default.largeur_mm)
+        by_id = {s.id: s for s in brick_shapes}
+        cache: dict[str, dict] = {}
+
+        def molds_for(key: str) -> dict:
+            if key not in cache:
+                cache[key] = self._family_molds(key, families[key], warnings)
+                cache[key]["by_id"] = by_id
+            return cache[key]
+
         results: list[WallLayout] = []
         totals: dict[int, int] = {}
         cuts = waste = 0
         for wall in walls:
+            key, origin = self._select_family(wall.geometry, std_keys, default_key, warnings)
+            m = dict(molds_for(key))
+            m["origine"] = origin
             exact, detail = self._lay_wall(wall, m, warnings)
+            if origin == "epaisseur" and key != default_key:
+                detail["notes"].append(f"Gamme « {m['label']} » choisie d'après l'épaisseur du mur "
+                                       f"({wall.geometry.thickness_mm} mm).")
             quantities = {sid: _ceil(Decimal(q) * (1 + self.rules.breakage_margin))
                           for sid, q in exact.items() if q > 0}
             detail["a_produire"] = {str(k): v for k, v in sorted(quantities.items())}
@@ -376,10 +434,13 @@ class CourseLayoutEngine(DefaultRuleBasedLayoutEngine):
             cuts += detail["coupes"]
             waste += detail["chutes_mm"]
             results.append(WallLayout(wall.id, quantities, detail))
-        ctx = {"length": m["L_std"], "height": m["H"], "lintel_length": m["L_linteau"]}
-        params = self._parameters(ctx)
+        dm = molds_for(default_key)
+        params = self._parameters({"length": dm["L_std"], "height": dm["H"],
+                                   "lintel_length": dm["L_linteau"]})
         params["moteur"] = "assises"
         params["dimensions_depuis_les_moules"] = True
+        used = sorted({r.detail["gamme"] for r in results})
+        params["gammes_utilisees"] = used
         indicators = {"pieces_coupees": cuts, "chutes_totales_m": round(waste / 1000)}
         return LayoutResult(
             engine=self.name, walls=tuple(results), warnings=tuple(dict.fromkeys(warnings)),

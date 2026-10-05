@@ -5,7 +5,8 @@ Le détail est visible mur par mur (élévation à l'échelle dans la page du pr
 L'ancien moteur reste disponible : `BRIKIA_LAYOUT_ENGINE=regles`.
 
 ## Ce que le moteur fait pour chaque mur
-1. **Assises** = hauteur du mur ÷ hauteur du bloc standard (pris dans la bibliothèque de moules, ex. 100 mm). Un écart de hauteur est signalé.
+0. **Gamme de moules du mur** (voir ci-dessous) : tous les moules d'un mur viennent d'une même gamme (même produit, même largeur), jamais mélangés.
+1. **Assises** = hauteur du mur ÷ hauteur du bloc standard de la gamme (ex. 100 mm). Un écart de hauteur est signalé.
 2. **Ouvertures** : vides sur les assises concernées, à leur **position réelle** et à leur **allège** réelle (lues dans l'IFC, le DXF
    ou le STEP). Hauteurs arrondies à l'assise. Si la position est inconnue (PDF simulé), l'ouverture est **placée automatiquement et signalée**.
 3. **Linteau** sur l'assise au-dessus de chaque ouverture, **appui de fenêtre** sur l'assise sous le vide, **chaînages verticaux** de chaque
@@ -18,6 +19,22 @@ L'ancien moteur reste disponible : `BRIKIA_LAYOUT_ENGINE=regles`.
 
 Règles réglables (fichier JSON `BRIKIA_LAYOUT_RULES_FILE`) : `breakage_margin`, `chain_spacing_max_mm`, `lintel_bearing_mm`,
 `default_window_sill_mm`, `min_piece_mm`, `reuse_offcuts`.
+
+## Épaisseurs et gammes de moules
+Une **gamme** = un produit + une largeur de moule (= épaisseur de mur) : BTC 100 / 150 / 200 / 300 mm et parpaing 100 / 150 / 200 / 300 mm
+(8 gammes, 71 moules : standard, demi, ¾, angle, chaînages vertical et horizontal, linteau, appui pour chacune ; page **Moules**, pastilles de filtre).
+* **Choix automatique** : pour chaque mur, la gamme dont la largeur est la plus proche de son **épaisseur** (lue dans l'IFC, le DXF ou le STEP).
+  À égalité d'écart : produit préféré (BTC avant parpaing), puis largeur la plus étroite. Épaisseur inconnue : gamme par défaut (BTC 150).
+* **Tolérance** : écart maximal 40 mm (règle `thickness_tolerance_mm`) ; au-delà, la gamme la plus proche est utilisée **avec avertissement**
+  (ex. un mur de 340 mm utilise la gamme 300 mm).
+* **Choix manuel** : dans l'éditeur de mur, « Gamme de moules » impose une gamme à ce mur (bouton « Modifier »). Une gamme imposée mais
+  indisponible (moule standard désactivé) est signalée et le choix redevient automatique.
+* Une gamme sans moule d'angle ou de linteau utilise **son propre** moule standard à la place, avec avertissement (jamais un moule d'une autre largeur).
+* L'élévation de chaque mur indique la gamme et son origine (épaisseur, imposée, défaut). Le rapport PDF aussi.
+* Poids, coûts et cadences des gammes ajoutées sont **dérivés par proportion** des gammes de base : ce sont des estimations à remplacer.
+
+Sur vos plans, les murs des plans fournis ont des épaisseurs de 50 à 340 mm (cloisons de 70, murs de 200, 260–300, 340) : le DXF « Restaurant »
+(cloisons de 100 mm et murs de 300 mm) utilise automatiquement BTC 100 et BTC 300, sans avertissement.
 
 ## Résultats sur vos plans (valeurs de départ des moules)
 | Plan | Murs | Surface nette | Ancienne estimation | Assises | Coupes | Angles : propriétaires / extrémités en butée / T |
@@ -42,9 +59,10 @@ allège ; vides = placées automatiquement). **Supprimer** retire un mur (un pro
   de pose (demi en tête d'assise impaire, chaînage tous les 4 m, jambages chaînés) sont des choix à confirmer avec votre maçon.
 * **Jonctions en T** : modélisées par un chaînage vertical à l'appui du refend ; le **bloc en T** (BTC_TE) n'est pas posé automatiquement.
 * **Pignons** (rampants) ignorés : les murs sont rectangulaires.
-* **Épaisseurs** : lues et enregistrées (IFC, DXF, STEP), affichées et modifiables, mais le moteur **ne choisit pas encore le moule selon l'épaisseur**.
+* **Murs épais (double paroi, > 300 mm)** : pas de gamme dédiée ; un mur de 340 mm utilise la gamme 300 avec avertissement.
 * **Détection des extrémités** : tolérance fondée sur l'épaisseur des murs ; les plans mal dessinés (murs qui ne se touchent pas) donnent des
   bouts libres à corriger à la main. Les murs d'étages différents ne sont jamais connectés.
-* **Un seul niveau de moule par fonction** : le premier moule disponible de la même gamme est utilisé (pas de choix par type de mur).
+* **Un moule par fonction dans une gamme** : le premier (par code) est utilisé ; pas de choix par assise ni par type de mur (porteur/cloison) autre que l'épaisseur.
+* L'**ancien moteur « regles »** ignore les gammes (il prend le premier moule de chaque fonction).
 * Ouvertures dont l'allège est inconnue : fenêtre à 900 mm par défaut (DXF) ; portes au sol.
 * Pas de contrôle structurel : ce n'est pas un calcul de résistance.

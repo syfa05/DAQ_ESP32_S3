@@ -136,6 +136,8 @@ function wallsTable(walls, project) {
       h('td', { class: 'num mono' }, fmt.mm2m(w.longueur_mm)),
       h('td', { class: 'num mono' }, fmt.mm2m(w.hauteur_mm)),
       h('td', { class: 'small mono' }, ends(w), w.junctions_mm?.length ? h('div', { class: 'muted' }, `T : ${w.junctions_mm.join(', ')}`) : null),
+      h('td', { class: 'small mono' }, w.thickness_mm ? `${w.thickness_mm} mm` : '—',
+        w.gamme ? h('div', { class: 'muted' }, `gamme imposée : ${w.gamme.replace('|', ' ')} mm`) : null),
       h('td', { class: 'small' }, w.openings.length
         ? w.openings.map((o) => h('div', {}, `${openingLabel(o.type)} ${fmt.mm2m(o.largeur_mm)} × ${fmt.mm2m(o.hauteur_mm)} m`
           + (o.x_mm != null ? ` · à ${o.x_mm} mm` : '')))
@@ -144,7 +146,7 @@ function wallsTable(walls, project) {
       h('td', { class: 'num mono' }, fmt.dec2(w.surface_ouvertures_m2)),
       h('td', { class: 'num mono' }, fmt.dec2(w.surface_nette_m2)), edit);
   });
-  const head = ['Mur', 'Long. (m)', 'Haut. (m)', 'Extrémités', 'Ouvertures', 'Brute (m²)', 'Ouv. (m²)', 'Nette (m²)'];
+  const head = ['Mur', 'Long. (m)', 'Haut. (m)', 'Extrémités', 'Épaisseur', 'Ouvertures', 'Brute (m²)', 'Ouv. (m²)', 'Nette (m²)'];
   if (editable) head.push('');
   const add = editable ? h('button', { class: 'btn btn-secondary btn-sm', type: 'button',
     onclick: () => openWallEditor({ projectId: id, wall: null, status: project.status, onDone: load }) }, 'Ajouter un mur') : null;
@@ -152,9 +154,9 @@ function wallsTable(walls, project) {
     h('div', { class: 'section-head' }, h('h2', { id: 'h-walls' }, 'Murs analysés'), add),
     editable ? h('p', { class: 'note' }, 'Vous pouvez corriger un mur (dimensions, extrémités, jonctions, ouvertures) : l\'analyse ne lit pas toujours tout. Une correction annule le calepinage, à recalculer.') : null,
     h('div', { class: `card table-card ${walls.length > 25 ? 'scroll' : ''}` }, h('table', {},
-      h('thead', {}, h('tr', {}, ...head.map((t, i) => h('th', { class: i === 1 || i === 2 || (i >= 5 && i <= 7) ? 'num' : '' }, t)))),
+      h('thead', {}, h('tr', {}, ...head.map((t, i) => h('th', { class: i === 1 || i === 2 || (i >= 6 && i <= 8) ? 'num' : '' }, t)))),
       h('tbody', {}, rows),
-      h('tfoot', {}, h('tr', {}, h('td', { colspan: 7 }, 'Surface nette totale'),
+      h('tfoot', {}, h('tr', {}, h('td', { colspan: 8 }, 'Surface nette totale'),
         h('td', { class: 'num mono' }, fmt.dec2(net)), editable ? h('td') : null)))));
 }
 
@@ -205,6 +207,7 @@ function wallElevation(body) {
     + (o.position_estimee ? ' (position estimée : plan non lu en détail)' : '')))) : null;
   return h('div', {},
     elevation(body), legend(body),
+    h('p', { class: 'small' }, h('strong', {}, 'Gamme : '), `${d.gamme} — ${({ epaisseur: `choisie d'après l'épaisseur du mur (${d.epaisseur_mm} mm)`, manuelle: 'imposée à la main', defaut: 'par défaut (épaisseur inconnue)' })[d.gamme_origine] || ''}`),
     h('p', { class: 'small muted' }, `${d.assises} assises de ${d.hauteur_assise_mm} mm · ${d.coupes} pièce(s) coupée(s) · chutes ${fmt.int(d.chutes_mm)} mm`
       + ' · quantités à produire = pose + marge de casse.'),
     d.notes.length ? h('div', { class: 'warn' }, h('ul', {}, d.notes.map((n) => h('li', {}, n)))) : null,

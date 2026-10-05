@@ -106,7 +106,10 @@ def test_recalculation_replaces_previous_run_without_duplicates(chef):
 def test_recalculation_reflects_mold_availability(chef):
     c, csrf = chef
     pid, _ = _laid_out(c, csrf)
-    c.patch("/api/moulds/2/disponibilite", headers=csrf, json={"disponible": False})  # BTC_ANGLE
+    # Tous les moules d'angle BTC (toutes les largeurs de la bibliothèque étendue) : repli sur le parpaing.
+    for s in c.get("/api/moulds").json():
+        if s["categorie"] == "angle" and s["produit"].startswith("BTC"):
+            c.patch(f"/api/moulds/{s['id']}/disponibilite", headers=csrf, json={"disponible": False})
     lay = c.post(f"/api/projects/{pid}/calepinage", headers=csrf).json()
     assert "PARP_ANGLE" in _qty(lay, "Façade nord") and "BTC_ANGLE" not in _qty(lay, "Façade nord")
     assert lay["avertissements"] and "Parpaing" in lay["avertissements"][0]
@@ -126,8 +129,9 @@ def test_layout_refused_outside_optimisation_phase(chef, status):
 def test_no_standard_mold_leaves_project_unchanged(chef):
     c, csrf = chef
     pid = _analysed(c, csrf)
-    for sid in (1, 5):  # BTC_STD, PARP_STD
-        c.patch(f"/api/moulds/{sid}/disponibilite", headers=csrf, json={"disponible": False})
+    for s in c.get("/api/moulds").json():  # tous les moules standard, toutes gammes confondues
+        if s["categorie"] == "standard":
+            c.patch(f"/api/moulds/{s['id']}/disponibilite", headers=csrf, json={"disponible": False})
     r = c.post(f"/api/projects/{pid}/calepinage", headers=csrf)
     assert r.status_code == 409 and r.json()["code"] == "calepinage_impossible"
     assert c.get(f"/api/projects/{pid}").json()["status"] == "a_optimiser"

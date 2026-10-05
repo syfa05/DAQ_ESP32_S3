@@ -13,7 +13,7 @@ def test_initial_library_is_seeded_by_migration(oper):
     codes = [s["code"] for s in shapes]
     assert codes[:6] == ["BTC_STD", "BTC_ANGLE", "BTC_CHAINAGE", "BTC_LINTEAU",
                          "PARP_STD", "PARP_ANGLE"]
-    assert len(codes) == 23
+    assert len(codes) == 71
     assert {s["produit"] for s in shapes} == {"BTC autobloquante", "Parpaing autobloquant"}
     assert all(s["disponible"] for s in shapes)
     by = {s["code"]: s for s in shapes}
@@ -129,7 +129,7 @@ def test_operator_cannot_manage_molds(oper):
     with session_scope() as s:
         s1 = s.get(BrickShape, 1)
         assert s1.nom == "BTC standard" and s1.disponible
-        assert s.query(BrickShape).count() == 23
+        assert s.query(BrickShape).count() == 71
 
 
 def test_csrf_required_on_mold_writes(chef):
@@ -145,4 +145,4 @@ def test_molds_persist_across_restart(settings, chef):
     c.patch("/api/moulds/1/disponibilite", headers=csrf, json={"disponible": False})
     init_db(settings)
     shapes = c.get("/api/moulds").json()
-    assert len(shapes) == 24 and shapes[0]["disponible"] is False
+    assert len(shapes) == 72 and shapes[0]["disponible"] is False

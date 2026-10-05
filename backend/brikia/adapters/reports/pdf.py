@@ -275,7 +275,8 @@ def build_report(*, project: dict, walls: list[dict], bom: dict | None, quote: d
         for el in elevations:
             d = el["detail"]
             head = Paragraph(_t(f"<b>{el['nom']}</b> - {d['longueur_mm']} x {d['hauteur_mm']} mm - "
-                                f"{d['assises']} assises - {d['coupes']} coupe(s)"), body)
+                                f"{d['assises']} assises - {d['coupes']} coupe(s)"
+                                + (f" - gamme {d['gamme']}" if d.get("gamme") else "")), body)
             notes = [Paragraph(_t("• " + n), small) for n in d.get("notes", [])[:3]]
             S.append(KeepTogether([Spacer(1, 3 * mm), head, Spacer(1, 1 * mm),
                                    WallElevation(d, el["formes"], doc.width, 70 * mm), *notes]))

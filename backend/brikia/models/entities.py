@@ -125,6 +125,8 @@ class Wall(Base):
     end_kind: Mapped[str | None] = mapped_column(String(10))
     junctions_mm: Mapped[list | None] = mapped_column(JSON)
     thickness_mm: Mapped[int | None] = mapped_column(Integer)
+    # Gamme de moules imposée (« produit|largeur ») ; None = choix automatique selon l'épaisseur.
+    gamme: Mapped[str | None] = mapped_column(String(80))
     manuel: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))
 
     project: Mapped[Project] = relationship(back_populates="walls")

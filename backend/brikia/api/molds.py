@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..deps import current_user, get_db, require_chef_projet
 from ..domain.enums import Role
 from ..models import User
-from ..schemas.molds import Availability, ShapeCreate, ShapeOut, ShapeUpdate
+from ..schemas.molds import Availability, GammeOut, ShapeCreate, ShapeOut, ShapeUpdate
 from ..services import molds as svc
 
 router = APIRouter(prefix="/api/moulds", tags=["moules"])
@@ -23,6 +23,12 @@ def _visible(shape, user: User) -> ShapeOut:
 @router.get("", response_model=list[ShapeOut])
 def list_shapes(user: User = Depends(current_user), db: Session = Depends(get_db)):
     return [_visible(s, user) for s in svc.list_shapes(db)]
+
+
+@router.get("/gammes", response_model=list[GammeOut])
+def list_gammes(_: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Gammes de moules (produit + largeur) : sert au choix automatique selon l'épaisseur des murs."""
+    return svc.list_gammes(db)
 
 
 @router.get("/{shape_id}", response_model=ShapeOut)

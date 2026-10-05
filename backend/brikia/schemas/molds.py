@@ -71,3 +71,16 @@ class ShapeOut(BaseModel):
     cadence_par_heure: int | None
     cout_unitaire_eur: Decimal | None  # réservé au chef de projet (masqué pour l'opérateur)
     disponible: bool
+
+
+class GammeOut(BaseModel):
+    """Famille de moules compatibles (même produit, même largeur = épaisseur de mur)."""
+
+    cle: str
+    produit: str
+    largeur_mm: int | None
+    nb_moules: int
+    nb_disponibles: int
+    categories: list[str]
+    manque: list[str]       # fonctions utiles absentes (parmi celles posées par le calepinage)
+    complete: bool

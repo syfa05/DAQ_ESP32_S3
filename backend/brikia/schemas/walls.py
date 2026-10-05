@@ -28,4 +28,5 @@ class WallEdit(BaseModel):
     is_corner: bool | None = None            # utilisé seulement si les extrémités ne sont pas précisées
     junctions_mm: list[int] = Field(default_factory=list, max_length=50)
     thickness_mm: int | None = Field(default=None, ge=40, le=1000)
+    gamme: str | None = Field(default=None, max_length=80)   # « produit|largeur » ; None = automatique
     openings: list[OpeningEdit] = Field(default_factory=list, max_length=100)

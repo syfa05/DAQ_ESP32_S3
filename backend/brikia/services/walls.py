@@ -16,7 +16,7 @@ from ..domain.enums import ProjectStatus
 from ..domain.errors import Conflict, NotFound, ValidationFailed
 from ..models import LayoutRun, Opening, Project, User, Wall
 from ..schemas.walls import WallEdit
-from . import audit, projects
+from . import audit, molds, projects
 
 log = logging.getLogger("brikia.walls")
 NOTE_PREFIX = "Plan corrigé à la main"
@@ -82,6 +82,7 @@ def _apply(wall: Wall, data: WallEdit) -> None:
     wall.nom, wall.longueur_mm, wall.hauteur_mm = data.nom, data.longueur_mm, data.hauteur_mm
     wall.start_kind, wall.end_kind = data.start_kind, data.end_kind
     wall.thickness_mm = data.thickness_mm
+    wall.gamme = data.gamme or None
     wall.junctions_mm = sorted(set(data.junctions_mm)) or None
     if data.start_kind or data.end_kind:
         wall.is_corner = bool({"angle", "butee"} & {data.start_kind, data.end_kind})
@@ -94,12 +95,14 @@ def _apply(wall: Wall, data: WallEdit) -> None:
 
 def _summary(wall: Wall) -> dict:
     return {"nom": wall.nom, "longueur_mm": wall.longueur_mm, "hauteur_mm": wall.hauteur_mm,
-            "ouvertures": len(wall.openings), "debut": wall.start_kind, "fin": wall.end_kind}
+            "ouvertures": len(wall.openings), "debut": wall.start_kind, "fin": wall.end_kind,
+            "epaisseur_mm": wall.thickness_mm, "gamme": wall.gamme}
 
 
 def create_wall(db: Session, actor: User, project: Project, data: WallEdit) -> Wall:
     _ensure_editable(project)
     validate_edit(data)
+    molds.ensure_gamme_exists(db, data.gamme)
     wall = Wall(project_id=project.id)
     _apply(wall, data)
     db.add(wall)
@@ -114,6 +117,7 @@ def create_wall(db: Session, actor: User, project: Project, data: WallEdit) -> W
 def update_wall(db: Session, actor: User, project: Project, wall_id: int, data: WallEdit) -> Wall:
     _ensure_editable(project)
     validate_edit(data)
+    molds.ensure_gamme_exists(db, data.gamme)
     wall = _get_wall(db, project, wall_id)
     before = _summary(wall)
     _apply(wall, data)

@@ -29,6 +29,7 @@ class WallOut(BaseModel):
     end_kind: str | None = None
     junctions_mm: list[int] | None = None
     thickness_mm: int | None = None
+    gamme: str | None = None
     manuel: bool = False
     openings: list[OpeningOut] = []
 
