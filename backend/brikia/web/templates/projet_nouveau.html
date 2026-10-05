@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Nouveau projet{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Nouveau projet</h1>
+  <p class="muted">Importez le plan de l'architecte. BrikIA lit les plans <strong>IFC</strong> (modèle 3D), <strong>STEP</strong> (solides 3D) et
+    <strong>DXF</strong> (plan 2D, approximation). Un PDF n'est pas lu : son analyse est simulée.</p></div></div>
+<form id="project-form" class="card form-card" novalidate
+      data-max-mb="{{ settings.max_upload_mb }}" data-ext="{{ settings.allowed_extensions | join(',') }}">
+  <label for="nom">Nom du projet</label>
+  <input id="nom" name="nom" maxlength="200" required>
+  <div class="two-cols">
+    <div><label for="ville">Ville</label><input id="ville" name="ville" maxlength="120"></div>
+    <div><label for="architecte">Architecte</label><input id="architecte" name="architecte" maxlength="120"></div>
+  </div>
+  <label for="fichier">Plan ({{ settings.allowed_extensions | join(', ') }} — {{ settings.max_upload_mb }} Mo max)</label>
+  <input id="fichier" name="fichier" type="file" accept="{{ settings.allowed_extensions | join(',') }}" required>
+  <p id="form-error" class="form-error" role="alert" hidden></p>
+  <div class="actions">
+    <a class="btn btn-ghost" href="/">Annuler</a>
+    <button class="btn btn-primary" type="submit">Créer le projet</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/projet_nouveau.js"></script>{% endblock %}

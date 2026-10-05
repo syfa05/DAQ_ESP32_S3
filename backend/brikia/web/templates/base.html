@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BrikIA{% endblock %} — BrikIA</title>
+  {% if csrf %}<meta name="csrf-token" content="{{ csrf }}">{% endif %}
+  <link rel="stylesheet" href="/static/css/fonts.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" href="data:,">
+</head>
+<body data-role="{{ user.role if user else '' }}" data-login="{{ user.login if user else '' }}">
+  <a class="skip" href="#contenu">Aller au contenu</a>
+  {% if user %}
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">BrikIA</span></a>
+    <nav aria-label="Navigation principale">
+      <a href="/" {% if nav == 'projets' %}aria-current="page"{% endif %}>Projets</a>
+      <a href="/moules" {% if nav == 'moules' %}aria-current="page"{% endif %}>Moules</a>
+      {% if is_chef %}<a href="/tarifs" {% if nav == 'tarifs' %}aria-current="page"{% endif %}>Tarifs</a>{% endif %}
+      <a href="/production" {% if nav == 'production' %}aria-current="page"{% endif %}>Production</a>
+      {% if is_chef %}<a href="/journal" {% if nav == 'journal' %}aria-current="page"{% endif %}>Journal</a>
+      <a href="/utilisateurs" {% if nav == 'utilisateurs' %}aria-current="page"{% endif %}>Utilisateurs</a>{% endif %}
+    </nav>
+    <div class="userbox">
+      <a class="user-name" href="/compte" title="Mon compte">{{ user.nom }}</a>
+      <span class="user-role">{{ role_labels[user.role] }}</span>
+      <button class="btn btn-ghost btn-sm" id="logout" type="button">Déconnexion</button>
+    </div>
+  </header>
+  {% endif %}
+  <main id="contenu" {% block main_attrs %}{% endblock %}>
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toasts" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">JavaScript est nécessaire pour utiliser BrikIA.</p></noscript>
+  <script type="module" src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

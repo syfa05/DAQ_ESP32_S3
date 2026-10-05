@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Tarifs et chiffrage{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Tarifs et chiffrage</h1>
+  <p class="muted">Valeurs ESTIMATIVES, modifiables à tout moment. Un projet déjà validé conserve le devis figé à sa validation ; les autres utilisent ces tarifs.</p></div></div>
+<section class="card pad">
+  <h2 class="h-md">Paramètres généraux</h2>
+  <form id="rates-form" novalidate>
+    <div class="two-cols">
+      <div><label for="taux">1 EUR = … FCFA (parité fixe officielle : 655,957)</label>
+        <input id="taux" name="taux_fcfa_par_eur" type="number" step="0.001" min="0.001" required></div>
+      <div><label for="marge">Marge (%)</label>
+        <input id="marge" name="marge_pct" type="number" step="0.1" min="0" max="1000" required></div>
+      <div><label for="tva">TVA (%)</label>
+        <input id="tva" name="tva_pct" type="number" step="0.01" min="0" max="100" required></div>
+      <div><label for="frais">Frais fixes par projet (EUR : transport, installation…)</label>
+        <input id="frais" name="frais_fixes_eur" type="number" step="0.01" min="0" required></div>
+    </div>
+    <p id="rates-error" class="form-error" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit">Enregistrer les paramètres</button>
+    <span id="rates-info" class="muted small"></span>
+  </form>
+</section>
+<h2 class="h-md section-gap">Coût de revient estimé par moule</h2>
+<p class="muted small">Prix de vente unitaire = coût × (1 + marge) × taux, arrondi (2 décimales en EUR, entier en FCFA). L'aperçu se met à jour pendant la saisie.</p>
+<div id="costs" class="card table-card"><p class="muted pad">Chargement…</p></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/tarifs.js"></script>{% endblock %}

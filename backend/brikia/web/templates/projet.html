@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Projet{% endblock %}
+{% block main_attrs %}data-project-id="{{ project_id }}"{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/">← Projets</a></p>
+<div id="project" aria-live="polite"><p class="muted">Chargement…</p></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/pages/projet.js"></script>{% endblock %}

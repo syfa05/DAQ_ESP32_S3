@@ -1,0 +1,77 @@
+name: Installeur Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/brikia-production-system-4ai61m]
+    paths: [installer/**, backend/**, migrations/**, constraints.txt, .github/workflows/windows-installer.yml]
+
+jobs:
+  setup-exe:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Construire le dossier d'application (Python embarqué + dépendances)
+        run: python installer/build_windows.py --profile complet
+
+      - name: Contrôle des bibliothèques de lecture des plans (Python embarqué)
+        run: build\BrikIA\python\python.exe -c "import ifcopenshell, ezdxf, OCP, fastapi, uvicorn, reportlab; print('ifcopenshell', ifcopenshell.version, '| ezdxf', ezdxf.__version__)"
+
+      - name: Test de fumée du dossier construit (DXF réel)
+        run: >
+          build\BrikIA\python\python.exe installer\smoke_test.py
+          build\BrikIA\python\python.exe build\BrikIA\app\launcher.py
+          --plan "tests/fixtures/dxf/Demo - Restaurant (Template F0).dxf"
+
+      - name: Test de fumée du dossier construit (IFC réel)
+        shell: pwsh
+        run: |
+          Expand-Archive "tests/fixtures/Bureau.zip" -DestinationPath ifc-fixture
+          $ifc = (Get-ChildItem ifc-fixture -Recurse -Filter *.ifc | Select-Object -First 1).FullName
+          build\BrikIA\python\python.exe installer\smoke_test.py build\BrikIA\python\python.exe build\BrikIA\app\launcher.py --plan "$ifc"
+
+      - name: Compiler Setup.exe (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DAppVersion=1.0.0" installer\BrikIA.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC a échoué" }
+          Get-Item dist\BrikIA-Setup.exe | Format-List Name, Length
+
+      - name: Installer en mode silencieux, tester, désinstaller
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\BrikIA-installed"
+          $p = Start-Process dist\BrikIA-Setup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir","/TASKS=lan" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installation : code $($p.ExitCode)" }
+          if (-not (Test-Path "$dir\python\python.exe")) { throw "python.exe absent après installation" }
+          Get-Content "$env:ProgramData\BrikIA\.env"
+          # Le .env écrit par l'installeur doit être lisible par l'application (régression : accent ANSI).
+          Set-Location "$env:ProgramData\BrikIA"
+          & "$dir\python\python.exe" -c "import sys; sys.path.insert(0, r'$dir\app\backend'); from brikia.config import get_settings; s = get_settings(); print('config OK', s.host, s.port)"
+          if ($LASTEXITCODE -ne 0) { throw "Le .env installé n'est pas lisible" }
+          Set-Location $env:GITHUB_WORKSPACE
+          & "$dir\python\python.exe" installer\smoke_test.py "$dir\python\python.exe" "$dir\app\launcher.py" --plan "tests/fixtures/dxf/Demo - Restaurant (Template F0).dxf"
+          if ($LASTEXITCODE -ne 0) { throw "Test de fumée de l'installation : échec" }
+          # unins000.exe relance une copie temporaire et rend la main tout de suite : on attend la fin réelle.
+          Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Test-Path "$dir\python\python.exe") -and ((Get-Date) -lt $deadline)) { Start-Sleep 3 }
+          if (Test-Path "$dir\python\python.exe") {
+            Get-Process | Where-Object { $_.Path -like "$dir*" } | Format-Table Name, Id, Path
+            throw "Désinstallation incomplète"
+          }
+          if (-not (Test-Path "$env:ProgramData\BrikIA")) { throw "Les données auraient dû être conservées" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BrikIA-Setup
+          path: dist/BrikIA-Setup.exe
+          retention-days: 30
